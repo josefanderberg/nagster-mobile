@@ -6,13 +6,16 @@ import TaskForm from '../components/TaskForm.js'
 import ActiveTimer from '../components/ActiveTimer.js'
 import TaskCard from '../components/TaskCard.js'
 import ErrorBanner from '../components/ErrorBanner.js'
+import GuardAlarm from '../components/GuardAlarm.js'
+import { useMotionGuard } from '../useMotionGuard.js'
 import { colors } from '../theme.js'
 
 function HemScreen({ navigation }) {
   const [tasks, setTasks] = useState([])
   const [active, setActive] = useState(null) // bara ett tjat åt gången
-  const [guard, setGuard] = useState(false)
   const [error, setError] = useState(null)
+  // Vakten bor här och inte i formuläret, så att den lever vidare när ett tjat startas
+  const guard = useMotionGuard()
 
   const load = useCallback(() => {
     return getTasks()
@@ -31,13 +34,12 @@ function HemScreen({ navigation }) {
     }, [load])
   )
 
-  async function handleAdd(title, seconds, recording, withGuard) {
+  async function handleAdd(title, seconds, recording) {
     try {
       // Uppgiften skapas först, sedan kopplas inspelningen till den.
       // Svaret från uppladdningen innehåller sökvägen till ljudet.
       let task = await createTask({ title, durationSeconds: seconds })
       if (recording) task = await uploadRecording(task.id, recording)
-      setGuard(withGuard)
       setActive(task)
       await load()
     } catch (err) {
@@ -76,9 +78,11 @@ function HemScreen({ navigation }) {
         {active ? (
           <ActiveTimer task={active} guard={guard} onDone={handleDone} onSnooze={handleSnooze} />
         ) : (
-          <TaskForm onAdd={handleAdd} onError={setError} />
+          <TaskForm onAdd={handleAdd} onError={setError} guard={guard} />
         )}
       </Pressable>
+
+      <GuardAlarm visible={guard.phase === 'alarm'} onDisarm={guard.disarm} />
 
       <FlatList
         style={styles.history}

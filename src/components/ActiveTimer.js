@@ -2,11 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useKeepAwake } from 'expo-keep-awake'
 import TimerRing from './TimerRing.js'
-import GuardAlarm from './GuardAlarm.js'
 import { ClockIcon, TimerIcon } from './icons.js'
 import { fileUrl } from '../api.js'
 import { playNag } from '../nag.js'
-import { useMotionGuard } from '../useMotionGuard.js'
 import { isSecondsMode } from '../timerRing.js'
 import { clockTime, formatCountdown } from '../time.js'
 import { colors } from '../theme.js'
@@ -21,7 +19,6 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
   const [secondsLeft, setSecondsLeft] = useState(task.durationSeconds)
   const [showClock, setShowClock] = useState(false)
   const stopNag = useRef(null)
-  const motion = useMotionGuard(guard)
 
   const expired = secondsLeft === 0
 
@@ -62,9 +59,9 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
   }
 
   const status =
-    motion.phase === 'arming'
-      ? `Lägg mobilen på bordet … ${motion.armLeft}`
-      : motion.phase === 'watching'
+    guard.phase === 'arming'
+      ? `Lägg mobilen på bordet … ${guard.armLeft}`
+      : guard.phase === 'watching'
         ? 'Vakten är på – rör inte mobilen'
         : task.title
 
@@ -86,7 +83,7 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
 
       {/* Samma höjd som formulärets knapprad, annars hoppar ringen */}
       <View style={styles.titleRow}>
-        <Text style={[styles.title, motion.phase !== 'off' && styles.guardText]} numberOfLines={1}>
+        <Text style={[styles.title, guard.isOn && styles.guardText]} numberOfLines={1}>
           {status}
         </Text>
       </View>
@@ -98,7 +95,6 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
         <Text style={styles.btnText}>{expired ? 'Snooza' : 'Klart'}</Text>
       </Pressable>
 
-      <GuardAlarm visible={motion.phase === 'alarm'} onDisarm={motion.disarm} />
     </View>
   )
 }
@@ -120,7 +116,7 @@ const styles = StyleSheet.create({
   },
   titleRow: { height: 46, justifyContent: 'center' },
   title: { color: colors.muted, fontSize: 15 },
-  guardText: { color: colors.ok, fontWeight: '600' },
+  guardText: { color: colors.accent, fontWeight: '600' },
   btn: { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 28 },
   done: { backgroundColor: colors.ok },
   snooze: { backgroundColor: colors.accent },

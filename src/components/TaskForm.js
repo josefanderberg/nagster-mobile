@@ -10,23 +10,21 @@ import { colors } from '../theme.js'
 import { ClockIcon, LockIcon, PencilIcon, TimerIcon } from './icons.js'
 
 const DEFAULT_SECONDS = 25 * 60
-const RECORDING_TITLE = 'Inspelat tjat'
-const GUARD_TITLE = 'Mobilen på bordet'
+const DEFAULT_TITLE = 'Inspelat tjat'
 
-function TaskForm({ onAdd, onError }) {
+function TaskForm({ onAdd, onError, guard }) {
   const [title, setTitle] = useState('')
   const [seconds, setSeconds] = useState(DEFAULT_SECONDS)
   const [showClock, setShowClock] = useState(false)
   const [editing, setEditing] = useState(false)
-  const [guard, setGuard] = useState(false)
   const [saving, setSaving] = useState(false)
   const recorder = useRecorder(onError)
 
   const secondsMode = isSecondsMode(seconds)
 
-  // Det räcker med en av dem: titel, inspelat tjat eller rörelsevakten
-  const canStart =
-    Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null || guard
+  // Ett tjat kräver en titel eller en inspelning – båda behövs inte.
+  // Rörelsevakten räknas inte: den är en egen funktion som inte sparar något.
+  const canStart = Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null
 
   // Ett klick för varje steg man snurrar, som på en riktig ratt. Telefonen
   // rapporterar fingret ungefär 60 gånger i sekunden, så snurrar man snabbt
@@ -59,9 +57,7 @@ function TaskForm({ onAdd, onError }) {
     try {
       // Pågår en inspelning stoppas den här, så att tjatet kommer med
       const audio = await recorder.stop()
-      // Utan titel får uppgiften ett namn efter vad den består av
-      const fallback = audio ? RECORDING_TITLE : GUARD_TITLE
-      await onAdd(title.trim() || fallback, seconds, audio, guard)
+      await onAdd(title.trim() || DEFAULT_TITLE, seconds, audio)
       setTitle('')
       setEditing(false)
       recorder.reset()
@@ -116,13 +112,19 @@ function TaskForm({ onAdd, onError }) {
           onStop={recorder.stop}
         />
 
-        {/* Rörelsevakten: larmar om telefonen plockas upp medan tiden går */}
+        {/* Rörelsevakten: slås på direkt, oberoende av tjatet. Siffran är
+            nedräkningen innan den låser. */}
         <Pressable
-          style={[styles.iconBtn, guard && styles.guardOn]}
-          onPress={() => setGuard((on) => !on)}
-          accessibilityLabel="Lås mobilen på bordet"
+          style={[styles.iconBtn, guard.isOn && styles.guardOn]}
+          onPress={guard.isOn ? guard.disarm : guard.arm}
+          accessibilityLabel={guard.isOn ? 'Stäng av vakten' : 'Lås mobilen på bordet'}
         >
-          <LockIcon color={guard ? colors.ok : colors.muted} />
+          <LockIcon color={guard.isOn ? colors.accent : colors.muted} />
+          {guard.phase === 'arming' && (
+            <View style={styles.armBadge}>
+              <Text style={styles.armBadgeText}>{guard.armLeft}</Text>
+            </View>
+          )}
         </Pressable>
       </View>
 
@@ -164,7 +166,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  guardOn: { borderColor: colors.ok, backgroundColor: '#e8f6ee' },
+  guardOn: { borderColor: colors.accent },
+  armBadge: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    minWidth: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  armBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   input: {
     width: 240,
     height: 46,

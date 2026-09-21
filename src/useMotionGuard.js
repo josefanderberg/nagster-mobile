@@ -20,9 +20,12 @@ function distance(a, b) {
 // självt. Det är det som gör Tjat till en mobilapp: en webbläsare har varken
 // accelerometer eller vibration.
 //
+// Vakten är fristående från tjat-timern: den sparar ingenting och kan köras
+// ensam, eller samtidigt som ett tjat räknar ner.
+//
 // Faser: 'off' → 'arming' (nedräkning) → 'watching' ⇄ 'alarm'
-export function useMotionGuard(enabled) {
-  const [phase, setPhase] = useState(enabled ? 'arming' : 'off')
+export function useMotionGuard() {
+  const [phase, setPhase] = useState('off')
   const [armLeft, setArmLeft] = useState(ARM_SECONDS)
   const resting = useRef(null)
 
@@ -87,10 +90,14 @@ export function useMotionGuard(enabled) {
     }
   }, [phase])
 
-  // Stänger av vakten för resten av tjatet
+  function arm() {
+    setArmLeft(ARM_SECONDS)
+    setPhase('arming')
+  }
+
   function disarm() {
     setPhase('off')
   }
 
-  return { phase, armLeft, disarm }
+  return { phase, armLeft, isOn: phase !== 'off', arm, disarm }
 }

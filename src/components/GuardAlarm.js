@@ -1,64 +1,91 @@
-import { useRef, useState } from 'react'
-import { Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useRef } from 'react'
+import { Animated, Easing, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 
 const HOLD_MILLISECONDS = 3000
+const RED = '#c1121f'
+const WHITE = '#ffffff'
+
+// Innehållet på larmskärmen, i valfri färg. Ritas två gånger – se nedan.
+function AlarmContent({ color }) {
+  return (
+    <View style={styles.content}>
+      <Text style={[styles.heading, { color }]}>LÄGG NED{'\n'}MOBILEN</Text>
+      <Text style={[styles.sub, { color }]}>Lägg tillbaka den så tystnar larmet.</Text>
+      <View style={[styles.hold, { borderColor: color }]}>
+        <Text style={[styles.holdText, { color }]}>Håll inne i 3 sekunder för att stänga av vakten</Text>
+      </View>
+    </View>
+  )
+}
 
 // Den röda skärmen när telefonen plockats upp. Larmet går bara att stänga av
-// genom att hålla inne knappen – så att man inte gör det på ren autopilot.
+// genom att hålla inne – så att man inte gör det på ren autopilot.
+//
+// Medan man håller fylls skärmen nerifrån med vitt, som en mätare, och färgerna
+// byter plats. Tricket: innehållet ritas två gånger, vitt på rött underst och
+// rött på vitt i fyllnaden. Fyllnaden klipper bort det som sticker upp, så det
+// syns bara så långt den hunnit växa.
 function GuardAlarm({ visible, onDisarm }) {
-  const [holding, setHolding] = useState(false)
-  const holdTimer = useRef(null)
+  const { height } = useWindowDimensions()
+  const fill = useRef(new Animated.Value(0)).current
+  const animation = useRef(null)
 
   function startHold() {
-    setHolding(true)
-    holdTimer.current = setTimeout(() => {
-      setHolding(false)
+    animation.current = Animated.timing(fill, {
+      toValue: 1,
+      duration: HOLD_MILLISECONDS,
+      easing: Easing.linear,
+      useNativeDriver: false,
+    })
+    animation.current.start(({ finished }) => {
+      if (!finished) return
+      fill.setValue(0)
       onDisarm()
-    }, HOLD_MILLISECONDS)
+    })
   }
 
+  // Släpper man för tidigt sjunker mätaren snabbt tillbaka
   function stopHold() {
-    clearTimeout(holdTimer.current)
-    setHolding(false)
+    animation.current?.stop()
+    Animated.timing(fill, { toValue: 0, duration: 250, useNativeDriver: false }).start()
   }
+
+  const fillHeight = fill.interpolate({ inputRange: [0, 1], outputRange: [0, height] })
 
   return (
     <Modal visible={visible} animationType="fade" statusBarTranslucent>
-      <View style={styles.screen}>
-        <Text style={styles.heading}>LÄGG NED{'\n'}MOBILEN</Text>
-        <Text style={styles.sub}>Lägg tillbaka den så tystnar larmet.</Text>
+      <Pressable style={styles.screen} onPressIn={startHold} onPressOut={stopHold}>
+        <AlarmContent color={WHITE} />
 
-        <Pressable style={[styles.hold, holding && styles.holding]} onPressIn={startHold} onPressOut={stopHold}>
-          <Text style={styles.holdText}>
-            {holding ? 'Håll kvar …' : 'Håll inne i 3 sekunder för att stänga av vakten'}
-          </Text>
-        </Pressable>
-      </View>
+        {/* Fyllnaden – släpper igenom fingret till skärmen under */}
+        <Animated.View pointerEvents="none" style={[styles.fill, { height: fillHeight }]}>
+          <View style={[styles.fillInner, { height }]}>
+            <AlarmContent color={RED} />
+          </View>
+        </Animated.View>
+      </Pressable>
     </Modal>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#c1121f',
+  screen: { flex: 1, backgroundColor: RED },
+  content: {
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
     gap: 16,
   },
-  heading: { color: '#fff', fontSize: 46, fontWeight: '900', textAlign: 'center', lineHeight: 52 },
-  sub: { color: '#ffd7d9', fontSize: 16, textAlign: 'center' },
-  hold: {
-    marginTop: 32,
-    borderWidth: 2,
-    borderColor: '#fff',
-    borderRadius: 16,
-    paddingVertical: 18,
-    paddingHorizontal: 24,
-  },
-  holding: { backgroundColor: 'rgba(255, 255, 255, 0.2)' },
-  holdText: { color: '#fff', fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  heading: { fontSize: 46, fontWeight: '900', textAlign: 'center', lineHeight: 52 },
+  sub: { fontSize: 16, textAlign: 'center' },
+  hold: { marginTop: 32, borderWidth: 2, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 24 },
+  holdText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  // Växer uppåt från botten och klipper allt som sticker utanför
+  fill: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden', backgroundColor: WHITE },
+  // Lika hög som skärmen och förankrad i botten, så att den röda kopian
+  // hamnar exakt ovanpå den vita
+  fillInner: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 })
 
 export default GuardAlarm
