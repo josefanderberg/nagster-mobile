@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
-import * as Haptics from 'expo-haptics'
 
 const ARM_SECONDS = 5 // tid att lägga ner telefonen innan vakten låser
 const SAMPLE_MS = 100 // hur ofta accelerometern läses av
@@ -10,7 +9,10 @@ const RETURN_THRESHOLD = 0.08 // så nära viloläget räknas som tillbakalagd
 const STILL_THRESHOLD = 0.03 // skakning (i g) som fortfarande räknas som stilla
 const STILL_READINGS = 3 // stilla mätningar i rad för att godta ett nytt viloläge
 const FLAT = 0.9 // ligger platt när tyngdkraften nästan helt drar rakt genom skärmen
-const HAPTIC_MS = 35 // så tätt att stötarna flyter ihop till ett jämnt surr
+// Systemvibrationen är den kraftigaste en app får använda. På iOS varar den
+// alltid ungefär 400 ms och mönstret är pauserna emellan – därför nästan inga
+// pauser alls. På Android är mönstret vänta/vibrera, så där en lång vibration.
+const ALARM_PATTERN = Platform.OS === 'ios' ? [0, 1] : [0, 1000]
 
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
@@ -82,25 +84,13 @@ export function useMotionGuard() {
     return () => subscription.remove()
   }, [phase])
 
-  // Larmet: så konstant och hårt som telefonen tillåter, med en enda mekanism
-  // i jämn takt. Två vibrationer i olika takt glider i och ur fas och känns som
-  // vågor – därför aldrig båda samtidigt.
+  // Larmet: systemvibrationen i så tät följd som telefonen tillåter. Bara den –
+  // de haptiska stötarna är svagare, och två vibrationer i olika takt glider i
+  // och ur fas så att det känns som vågor.
   useEffect(() => {
     if (phase !== 'alarm') return
-
-    // Android kan vibrera oavbrutet: en lång vibration som upprepas
-    if (Platform.OS === 'android') {
-      Vibration.vibrate([0, 1000], true)
-      return () => Vibration.cancel()
-    }
-
-    // iOS låter inte appar vibrera oavbrutet. Närmast kommer täta, kraftiga
-    // haptiska stötar – så täta att de flyter ihop till ett surr.
-    const interval = setInterval(
-      () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
-      HAPTIC_MS
-    )
-    return () => clearInterval(interval)
+    Vibration.vibrate(ALARM_PATTERN, true)
+    return () => Vibration.cancel()
   }, [phase])
 
   function arm() {
