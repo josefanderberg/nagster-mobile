@@ -5,7 +5,7 @@ const HOLD_MILLISECONDS = 3000
 
 // Den röda skärmen när telefonen plockats upp. Larmet går bara att stänga av
 // genom att hålla inne knappen – så att man inte gör det på ren autopilot.
-function GuardAlarm({ visible, title, onDisarm }) {
+function GuardAlarm({ visible, onDisarm }) {
   const [holding, setHolding] = useState(false)
   const holdTimer = useRef(null)
 
@@ -26,11 +26,11 @@ function GuardAlarm({ visible, title, onDisarm }) {
     <Modal visible={visible} animationType="fade" statusBarTranslucent>
       <View style={styles.screen}>
         <Text style={styles.heading}>LÄGG NED{'\n'}MOBILEN</Text>
-        <Text style={styles.sub}>"{title}" är inte klart än.</Text>
+        <Text style={styles.sub}>Lägg tillbaka den så tystnar larmet.</Text>
 
         <Pressable style={[styles.hold, holding && styles.holding]} onPressIn={startHold} onPressOut={stopHold}>
           <Text style={styles.holdText}>
-            {holding ? 'Håll kvar …' : 'Håll inne i 3 sekunder för att stänga av'}
+            {holding ? 'Håll kvar …' : 'Håll inne i 3 sekunder för att stänga av vakten'}
           </Text>
         </Pressable>
       </View>

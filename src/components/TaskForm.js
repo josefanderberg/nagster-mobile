@@ -10,7 +10,8 @@ import { colors } from '../theme.js'
 import { ClockIcon, LockIcon, PencilIcon, TimerIcon } from './icons.js'
 
 const DEFAULT_SECONDS = 25 * 60
-const DEFAULT_TITLE = 'Inspelat tjat'
+const RECORDING_TITLE = 'Inspelat tjat'
+const GUARD_TITLE = 'Mobilen på bordet'
 
 function TaskForm({ onAdd, onError }) {
   const [title, setTitle] = useState('')
@@ -23,8 +24,9 @@ function TaskForm({ onAdd, onError }) {
 
   const secondsMode = isSecondsMode(seconds)
 
-  // Det räcker med antingen ett tjat eller en titel – båda behövs inte
-  const canStart = Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null
+  // Det räcker med en av dem: titel, inspelat tjat eller rörelsevakten
+  const canStart =
+    Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null || guard
 
   // Ett klick för varje steg man snurrar, som på en riktig ratt. Telefonen
   // rapporterar fingret ungefär 60 gånger i sekunden, så snurrar man snabbt
@@ -57,7 +59,9 @@ function TaskForm({ onAdd, onError }) {
     try {
       // Pågår en inspelning stoppas den här, så att tjatet kommer med
       const audio = await recorder.stop()
-      await onAdd(title.trim() || DEFAULT_TITLE, seconds, audio, guard)
+      // Utan titel får uppgiften ett namn efter vad den består av
+      const fallback = audio ? RECORDING_TITLE : GUARD_TITLE
+      await onAdd(title.trim() || fallback, seconds, audio, guard)
       setTitle('')
       setEditing(false)
       recorder.reset()

@@ -98,7 +98,7 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
         <Text style={styles.btnText}>{expired ? 'Snooza' : 'Klart'}</Text>
       </Pressable>
 
-      <GuardAlarm visible={motion.phase === 'alarm'} title={task.title} onDisarm={motion.disarm} />
+      <GuardAlarm visible={motion.phase === 'alarm'} onDisarm={motion.disarm} />
     </View>
   )
 }
