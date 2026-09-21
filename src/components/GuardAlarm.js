@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { Animated, Easing, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { DISARM_HOLD_MS } from '../useMotionGuard.js'
 
-const HOLD_MILLISECONDS = 3000
 const RED = '#c1121f'
 const WHITE = '#ffffff'
 
@@ -33,7 +33,7 @@ function GuardAlarm({ visible, onDisarm }) {
   function startHold() {
     animation.current = Animated.timing(fill, {
       toValue: 1,
-      duration: HOLD_MILLISECONDS,
+      duration: DISARM_HOLD_MS,
       easing: Easing.linear,
       useNativeDriver: false,
     })

@@ -2,6 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
 
+// Hur länge man måste hålla inne för att stänga av en låst vakt – både på
+// larmskärmen och på låsknappen, så att det aldrig går att göra på autopilot
+export const DISARM_HOLD_MS = 3000
+
 const FLASH_MS = 250 // hur länge 3:an syns innan nedräkningen går vidare till 2
 // Siffran avrundas uppåt, så 3:an syns bara den första kvartssekunden –
 // sen tar 2 och 1 en hel sekund var
