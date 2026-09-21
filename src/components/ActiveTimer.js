@@ -58,12 +58,8 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
     onDone()
   }
 
-  const status =
-    guard.phase === 'arming'
-      ? `Lägg mobilen på bordet … ${guard.armLeft}`
-      : guard.phase === 'watching'
-        ? 'Vakten är på - rör inte mobilen'
-        : task.title
+  const arming = guard.phase === 'arming'
+  const status = arming ? `Lägg mobilen på bordet … ${guard.armLeft}` : task.title
 
   return (
     <View style={styles.wrapper}>
@@ -83,7 +79,7 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
 
       {/* Samma höjd som formulärets knapprad, annars hoppar ringen */}
       <View style={styles.titleRow}>
-        <Text style={[styles.title, guard.isOn && styles.guardText]} numberOfLines={1}>
+        <Text style={[styles.title, arming && styles.guardText]} numberOfLines={1}>
           {status}
         </Text>
       </View>

@@ -6,7 +6,7 @@ import TaskForm from '../components/TaskForm.js'
 import ActiveTimer from '../components/ActiveTimer.js'
 import TaskCard from '../components/TaskCard.js'
 import ErrorBanner from '../components/ErrorBanner.js'
-import GuardAlarm from '../components/GuardAlarm.js'
+import GuardScreen from '../components/GuardScreen.js'
 import { useMotionGuard } from '../useMotionGuard.js'
 import { colors } from '../theme.js'
 
@@ -82,7 +82,7 @@ function HemScreen({ navigation }) {
         )}
       </Pressable>
 
-      <GuardAlarm visible={guard.phase === 'alarm'} onDisarm={guard.disarm} />
+      <GuardScreen phase={guard.phase} onDisarm={guard.disarm} />
 
       <FlatList
         style={styles.history}
