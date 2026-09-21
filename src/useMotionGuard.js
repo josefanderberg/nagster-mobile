@@ -10,12 +10,7 @@ const RETURN_THRESHOLD = 0.08 // så nära viloläget räknas som tillbakalagd
 const STILL_THRESHOLD = 0.03 // skakning (i g) som fortfarande räknas som stilla
 const STILL_READINGS = 3 // stilla mätningar i rad för att godta ett nytt viloläge
 const FLAT = 0.9 // ligger platt när tyngdkraften nästan helt drar rakt genom skärmen
-const HAPTIC_MS = 90 // tätt mellan de haptiska stötarna ovanpå vibrationen
-
-// iOS vibrerar alltid ungefär 400 ms åt gången och tolkar mönstret som pauser
-// mellan vibrationerna – därför nästan inga pauser. Android tolkar mönstret som
-// vänta/vibrera, så där räcker en lång vibration som upprepas.
-const VIBRATION_PATTERN = Platform.OS === 'ios' ? [0, 1] : [0, 1000]
+const HAPTIC_MS = 35 // så tätt att stötarna flyter ihop till ett jämnt surr
 
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
@@ -87,20 +82,25 @@ export function useMotionGuard() {
     return () => subscription.remove()
   }, [phase])
 
-  // Larmet: så konstant och hårt som telefonen tillåter. En upprepad vibration
-  // i botten och täta, kraftiga haptiska stötar ovanpå.
+  // Larmet: så konstant och hårt som telefonen tillåter, med en enda mekanism
+  // i jämn takt. Två vibrationer i olika takt glider i och ur fas och känns som
+  // vågor – därför aldrig båda samtidigt.
   useEffect(() => {
     if (phase !== 'alarm') return
-    Vibration.vibrate(VIBRATION_PATTERN, true)
+
+    // Android kan vibrera oavbrutet: en lång vibration som upprepas
+    if (Platform.OS === 'android') {
+      Vibration.vibrate([0, 1000], true)
+      return () => Vibration.cancel()
+    }
+
+    // iOS låter inte appar vibrera oavbrutet. Närmast kommer täta, kraftiga
+    // haptiska stötar – så täta att de flyter ihop till ett surr.
     const interval = setInterval(
       () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
       HAPTIC_MS
     )
-
-    return () => {
-      clearInterval(interval)
-      Vibration.cancel()
-    }
+    return () => clearInterval(interval)
   }, [phase])
 
   function arm() {
