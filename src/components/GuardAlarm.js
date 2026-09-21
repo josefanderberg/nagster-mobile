@@ -26,7 +26,7 @@ function AlarmContent({ color }) {
 // rött på vitt i fyllnaden. Fyllnaden klipper bort det som sticker upp, så det
 // syns bara så långt den hunnit växa.
 function GuardAlarm({ visible, onDisarm }) {
-  const { height } = useWindowDimensions()
+  const { width, height } = useWindowDimensions()
   const fill = useRef(new Animated.Value(0)).current
   const animation = useRef(null)
 
@@ -54,12 +54,15 @@ function GuardAlarm({ visible, onDisarm }) {
 
   return (
     <Modal visible={visible} animationType="fade" statusBarTranslucent>
-      <Pressable style={styles.screen} onPressIn={startHold} onPressOut={stopHold}>
-        <AlarmContent color={WHITE} />
+      {/* Exakt skärmens mått, i stället för att lita på att rutan fyller sig själv */}
+      <Pressable style={[styles.screen, { width, height }]} onPressIn={startHold} onPressOut={stopHold}>
+        <View style={[styles.layer, { height }]}>
+          <AlarmContent color={WHITE} />
+        </View>
 
         {/* Fyllnaden – släpper igenom fingret till skärmen under */}
         <Animated.View pointerEvents="none" style={[styles.fill, { height: fillHeight }]}>
-          <View style={[styles.fillInner, { height }]}>
+          <View style={[styles.layer, { height }]}>
             <AlarmContent color={RED} />
           </View>
         </Animated.View>
@@ -69,9 +72,9 @@ function GuardAlarm({ visible, onDisarm }) {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: RED },
+  screen: { backgroundColor: RED },
   content: {
-    ...StyleSheet.absoluteFillObject,
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
@@ -81,11 +84,11 @@ const styles = StyleSheet.create({
   sub: { fontSize: 16, textAlign: 'center' },
   hold: { marginTop: 32, borderWidth: 2, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 24 },
   holdText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
+  // Båda kopiorna ligger i varsin ruta som är lika hög som skärmen och
+  // förankrad i botten – då hamnar den röda exakt ovanpå den vita
+  layer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   // Växer uppåt från botten och klipper allt som sticker utanför
   fill: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden', backgroundColor: WHITE },
-  // Lika hög som skärmen och förankrad i botten, så att den röda kopian
-  // hamnar exakt ovanpå den vita
-  fillInner: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 })
 
 export default GuardAlarm
