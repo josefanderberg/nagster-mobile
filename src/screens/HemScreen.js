@@ -1,112 +1,100 @@
 import { useCallback, useState } from 'react'
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native'
+import { FlatList, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
-import { getTasks, fileUrl } from '../api.js'
-import { formatDuration } from '../time.js'
+import { createTask, getTasks, updateTask, uploadRecording } from '../api.js'
+import TaskForm from '../components/TaskForm.js'
+import ActiveTimer from '../components/ActiveTimer.js'
+import TaskCard from '../components/TaskCard.js'
+import ErrorBanner from '../components/ErrorBanner.js'
 import { colors } from '../theme.js'
 
-function HemScreen({ navigation }) {
+function HemScreen() {
   const [tasks, setTasks] = useState([])
+  const [active, setActive] = useState(null) // bara ett tjat åt gången
   const [error, setError] = useState(null)
-  const [refreshing, setRefreshing] = useState(false)
 
   const load = useCallback(() => {
-    setRefreshing(true)
-    getTasks()
+    return getTasks()
       .then((data) => {
         setTasks(data)
         setError(null)
       })
       .catch((err) => setError(err.message))
-      .finally(() => setRefreshing(false))
   }, [])
 
-  // Hämta om listan varje gång skärmen visas (t.ex. efter Klart/Snooze)
   useFocusEffect(load)
 
-  function openTask(task) {
-    navigation.navigate('Vakt', {
-      taskId: task.id,
-      title: task.title,
-      seconds: task.durationSeconds,
-      snoozeCount: task.snoozeCount,
-      audioSource: task.filePath ? fileUrl(task.filePath) : null,
-      guard: false,
-    })
+  async function handleAdd(title, seconds, recording) {
+    try {
+      // Uppgiften skapas först, sedan kopplas inspelningen till den.
+      // Svaret från uppladdningen innehåller sökvägen till ljudet.
+      let task = await createTask({ title, durationSeconds: seconds })
+      if (recording) task = await uploadRecording(task.id, recording)
+      setActive(task)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function handleSnooze() {
+    const snoozed = { ...active, snoozeCount: active.snoozeCount + 1 }
+    setActive(snoozed)
+    try {
+      await updateTask(snoozed.id, snoozed)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  async function handleDone() {
+    const finished = { ...active, status: 'done' }
+    setActive(null)
+    try {
+      await updateTask(finished.id, finished)
+      await load()
+    } catch (err) {
+      setError(err.message)
+    }
   }
 
   return (
     <View style={styles.screen}>
-      {error && <Text style={styles.error}>⚠️ {error}</Text>}
+      <ErrorBanner message={error} onRetry={load} />
+
+      <View style={styles.hero}>
+        {active ? (
+          <ActiveTimer task={active} onDone={handleDone} onSnooze={handleSnooze} />
+        ) : (
+          <TaskForm onAdd={handleAdd} onError={setError} />
+        )}
+      </View>
 
       <FlatList
+        style={styles.history}
+        contentContainerStyle={styles.historyContent}
         data={tasks}
         keyExtractor={(task) => String(task.id)}
-        refreshing={refreshing}
-        onRefresh={load}
-        contentContainerStyle={{ paddingBottom: 100 }}
-        ListEmptyComponent={
-          !error && <Text style={styles.empty}>Inget att tjata om än. Tryck på + där nere!</Text>
-        }
         renderItem={({ item }) => (
-          <Pressable
-            style={[styles.card, item.status === 'done' && styles.cardDone]}
-            onPress={() => item.status !== 'done' && openTask(item)}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{item.title}</Text>
-              <Text style={styles.meta}>
-                {item.status === 'done' ? '✓ Klart' : formatDuration(item.durationSeconds)}
-                {item.snoozeCount > 0 && `  ·  😤 snoozad ${item.snoozeCount} ggr`}
-                {item.filePath && '  ·  🎙️'}
-              </Text>
-            </View>
-            {item.status !== 'done' && <Text style={styles.chevron}>▶</Text>}
-          </Pressable>
+          <TaskCard
+            task={item}
+            isActive={item.id === active?.id}
+            onCancel={() => setActive(null)}
+          />
         )}
+        ListEmptyComponent={!error && <Text style={styles.empty}>Inget att tjata om än.</Text>}
       />
-
-      <Pressable style={styles.fab} onPress={() => navigation.navigate('NyttTjat')}>
-        <Text style={styles.fabText}>＋</Text>
-      </Pressable>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, padding: 16 },
-  error: {
-    color: colors.accent,
-    backgroundColor: '#2a1512',
-    padding: 12,
-    borderRadius: 10,
-    marginBottom: 12,
-  },
-  empty: { color: colors.muted, textAlign: 'center', marginTop: 48, fontSize: 16 },
-  card: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.card,
-    borderRadius: 14,
-    padding: 16,
-    marginBottom: 10,
-  },
-  cardDone: { opacity: 0.45 },
-  title: { color: colors.text, fontSize: 17, fontWeight: '600' },
-  meta: { color: colors.muted, marginTop: 4 },
-  chevron: { color: colors.accent, fontSize: 18, marginLeft: 12 },
-  fab: {
-    position: 'absolute',
-    right: 24,
-    bottom: 32,
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
+  screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20 },
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  history: { flexGrow: 0, maxHeight: 210 },
+  historyContent: { gap: 10, paddingBottom: 16 },
+  empty: { textAlign: 'center', color: colors.muted, paddingVertical: 24 },
 })
 
 export default HemScreen
