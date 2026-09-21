@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react'
-import { FlatList, StyleSheet, Text, View } from 'react-native'
+import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { createTask, getTasks, updateTask, uploadRecording } from '../api.js'
 import TaskForm from '../components/TaskForm.js'
@@ -71,13 +71,14 @@ function HemScreen({ navigation }) {
     <View style={styles.screen}>
       <ErrorBanner message={error} onRetry={load} />
 
-      <View style={styles.hero}>
+      {/* Tryck utanför textrutan fäller ner tangentbordet, så Starta syns igen */}
+      <Pressable style={styles.hero} onPress={Keyboard.dismiss} accessible={false}>
         {active ? (
           <ActiveTimer task={active} guard={guard} onDone={handleDone} onSnooze={handleSnooze} />
         ) : (
           <TaskForm onAdd={handleAdd} onError={setError} />
         )}
-      </View>
+      </Pressable>
 
       <FlatList
         style={styles.history}

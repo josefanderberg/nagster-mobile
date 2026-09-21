@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import TimerRing from './TimerRing.js'
 import Recorder from './Recorder.js'
@@ -52,15 +52,21 @@ function TaskForm({ onAdd, onError }) {
   async function handleStart() {
     if (!canStart || saving) return
 
+    Keyboard.dismiss()
     setSaving(true)
-    // Pågår en inspelning stoppas den här, så att tjatet kommer med
-    const audio = await recorder.stop()
-    await onAdd(title.trim() || DEFAULT_TITLE, seconds, audio, guard)
-
-    setTitle('')
-    setEditing(false)
-    recorder.reset()
-    setSaving(false)
+    try {
+      // Pågår en inspelning stoppas den här, så att tjatet kommer med
+      const audio = await recorder.stop()
+      await onAdd(title.trim() || DEFAULT_TITLE, seconds, audio, guard)
+      setTitle('')
+      setEditing(false)
+      recorder.reset()
+    } catch (err) {
+      onError(err.message)
+    } finally {
+      // Släpp alltid spärren, annars fastnar knappen på "Startar …" om något går fel
+      setSaving(false)
+    }
   }
 
   return (
@@ -89,6 +95,8 @@ function TaskForm({ onAdd, onError }) {
             placeholder="Vad ska bli gjort?"
             placeholderTextColor={colors.muted}
             autoFocus
+            returnKeyType="go"
+            onSubmitEditing={handleStart}
             onBlur={() => !title.trim() && setEditing(false)}
           />
         ) : (
