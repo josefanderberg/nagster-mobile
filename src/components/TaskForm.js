@@ -26,14 +26,23 @@ function TaskForm({ onAdd, onError }) {
   // Det räcker med antingen ett tjat eller en titel – båda behövs inte
   const canStart = Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null
 
-  // Ett lätt klick för varje steg man snurrar, som på en riktig ratt.
-  // Ett tydligare när ringen byter mellan sekunder och minuter.
+  // Ett klick för varje steg man snurrar, som på en riktig ratt. Telefonen
+  // rapporterar fingret ungefär 60 gånger i sekunden, så snurrar man snabbt
+  // hinner ringen flytta flera steg mellan varje rapport – då blir klicket
+  // kraftigare i stället, så att fart känns som mer vibration och inte mindre.
   function handlePointer(x, y, rect) {
     const next = Math.max(MIN_SECONDS, secondsFromPointer(seconds, x, y, rect))
     if (next === seconds) return
 
+    const stepSize = secondsMode ? 1 : 60
+    const steps = Math.abs(next - seconds) / stepSize
+
     if (isSecondsMode(next) !== secondsMode) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy) // bytet vid toppen
+    } else if (steps >= 4) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    } else if (steps >= 2) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
     } else {
       Haptics.selectionAsync()
     }
