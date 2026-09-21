@@ -1,26 +1,20 @@
-import { useRef } from 'react'
 import { View } from 'react-native'
 import Svg, { Circle, Path, Text as SvgText } from 'react-native-svg'
 import { arcSegments, CENTER, polar, RADIUS, SIZE } from '../timerRing.js'
 import { mixWithWhite } from '../theme.js'
 
+// Fingrets läge mäts relativt ringen själv, så ringens ruta är hela världen
+const RING_BOX = { left: 0, top: 0, width: SIZE, height: SIZE }
+
 // Samma ring som i webbappen, ritad med react-native-svg. Två lägen: reglage
 // när tiden ställs in, och nedräkning när tjatet är igång.
 function TimerRing({ units, label, color, onPointer, interactive = true, mirrored = false }) {
-  const ringRef = useRef(null)
-  const layout = useRef({ x: 0, y: 0 })
-
-  // Fingret ger koordinater i sidan, så vi behöver veta var ringen sitter
-  function handleLayout() {
-    ringRef.current?.measureInWindow((x, y, width, height) => {
-      layout.current = { left: x, top: y, width, height }
-    })
-  }
-
+  // locationX/Y är fingrets läge inuti ringen. Det är stabilare än att mäta var
+  // ringen sitter på skärmen – den positionen hinner ändras när sidan laddar.
   function handleTouch(event) {
     if (!interactive) return
-    const { pageX, pageY } = event.nativeEvent
-    onPointer(pageX, pageY, layout.current)
+    const { locationX, locationY } = event.nativeEvent
+    onPointer(locationX, locationY, RING_BOX)
   }
 
   const [handleX, handleY] = polar(units, mirrored)
@@ -28,8 +22,9 @@ function TimerRing({ units, label, color, onPointer, interactive = true, mirrore
 
   return (
     <View
-      ref={ringRef}
-      onLayout={handleLayout}
+      // box-only: det är den här rutan som tar emot fingret, inte bågarna inuti.
+      // Annars skulle locationX räknas från den båge man råkar röra.
+      pointerEvents="box-only"
       onStartShouldSetResponder={() => interactive}
       onMoveShouldSetResponder={() => interactive}
       onResponderGrant={handleTouch}

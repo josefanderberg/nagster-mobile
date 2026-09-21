@@ -1,4 +1,5 @@
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { Pressable, StyleSheet } from 'react-native'
+import { MicIcon, StopIcon } from './icons.js'
 import { colors } from '../theme.js'
 
 // Bara knappen – själva inspelningen sköts av useRecorder
@@ -8,9 +9,11 @@ function Recorder({ isRecording, hasRecording, onStart, onStop }) {
       style={[styles.btn, isRecording && styles.recording, hasRecording && styles.hasRecording]}
       onPress={isRecording ? onStop : onStart}
     >
-      <Text style={[styles.icon, isRecording && styles.recordingIcon]}>
-        {isRecording ? '■' : '🎙'}
-      </Text>
+      {isRecording ? (
+        <StopIcon color="#fff" />
+      ) : (
+        <MicIcon color={hasRecording ? colors.accent : colors.muted} />
+      )}
     </Pressable>
   )
 }
@@ -28,8 +31,6 @@ const styles = StyleSheet.create({
   },
   recording: { backgroundColor: colors.accent, borderColor: colors.accent },
   hasRecording: { borderColor: colors.accent },
-  icon: { fontSize: 18, color: colors.muted },
-  recordingIcon: { color: '#fff' },
 })
 
 export default Recorder

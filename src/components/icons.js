@@ -1,0 +1,74 @@
+import Svg, { Circle, Path, Rect } from 'react-native-svg'
+
+// Samma ikoner som webbappen, ritade med react-native-svg i stället för emojis
+function Icon({ color, children }) {
+  return (
+    <Svg
+      width={20}
+      height={20}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke={color}
+      strokeWidth={1.8}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      {children}
+    </Svg>
+  )
+}
+
+export function ClockIcon({ color }) {
+  return (
+    <Icon color={color}>
+      <Circle cx="12" cy="12" r="9" />
+      <Path d="M12 7v5l3 2" />
+    </Icon>
+  )
+}
+
+export function TimerIcon({ color }) {
+  return (
+    <Icon color={color}>
+      <Path d="M10 2h4" />
+      <Path d="M12 9v5" />
+      <Circle cx="12" cy="14" r="8" />
+    </Icon>
+  )
+}
+
+export function PencilIcon({ color }) {
+  return (
+    <Icon color={color}>
+      <Path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" />
+      <Path d="m14.5 6.5 3 3" />
+    </Icon>
+  )
+}
+
+export function MicIcon({ color }) {
+  return (
+    <Icon color={color}>
+      <Rect x="9" y="3" width="6" height="11" rx="3" />
+      <Path d="M5 11a7 7 0 0 0 14 0" />
+      <Path d="M12 18v3" />
+    </Icon>
+  )
+}
+
+export function StopIcon({ color }) {
+  return (
+    <Icon color={color}>
+      <Rect x="7" y="7" width="10" height="10" rx="2" fill={color} />
+    </Icon>
+  )
+}
+
+export function LockIcon({ color }) {
+  return (
+    <Icon color={color}>
+      <Rect x="5" y="11" width="14" height="10" rx="2" />
+      <Path d="M8 11V7a4 4 0 0 1 8 0v4" />
+    </Icon>
+  )
+}

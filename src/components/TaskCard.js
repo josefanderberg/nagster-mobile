@@ -2,11 +2,14 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { formatDuration } from '../time.js'
 import { colors } from '../theme.js'
 
-function TaskCard({ task, isActive = false, onCancel }) {
+function TaskCard({ task, isActive = false, onCancel, onPress }) {
   const isDone = task.status === 'done'
 
   return (
-    <View style={[styles.card, isDone && styles.done, isActive && styles.active]}>
+    <Pressable
+      style={[styles.card, isDone && styles.done, isActive && styles.active]}
+      onPress={onPress}
+    >
       <View style={styles.top}>
         <Text style={styles.title} numberOfLines={1}>
           {task.title}
@@ -29,7 +32,7 @@ function TaskCard({ task, isActive = false, onCancel }) {
       {task.snoozeCount > 0 && (
         <Text style={styles.snooze}>Snoozad {task.snoozeCount} ggr</Text>
       )}
-    </View>
+    </Pressable>
   )
 }
 

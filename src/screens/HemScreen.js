@@ -8,9 +8,10 @@ import TaskCard from '../components/TaskCard.js'
 import ErrorBanner from '../components/ErrorBanner.js'
 import { colors } from '../theme.js'
 
-function HemScreen() {
+function HemScreen({ navigation }) {
   const [tasks, setTasks] = useState([])
   const [active, setActive] = useState(null) // bara ett tjat åt gången
+  const [guard, setGuard] = useState(false)
   const [error, setError] = useState(null)
 
   const load = useCallback(() => {
@@ -22,14 +23,21 @@ function HemScreen() {
       .catch((err) => setError(err.message))
   }, [])
 
-  useFocusEffect(load)
+  // Hämtar listan varje gång skärmen visas. Effekten får inte returnera
+  // load():s promise – bara en eventuell städfunktion – därav klamrarna.
+  useFocusEffect(
+    useCallback(() => {
+      load()
+    }, [load])
+  )
 
-  async function handleAdd(title, seconds, recording) {
+  async function handleAdd(title, seconds, recording, withGuard) {
     try {
       // Uppgiften skapas först, sedan kopplas inspelningen till den.
       // Svaret från uppladdningen innehåller sökvägen till ljudet.
       let task = await createTask({ title, durationSeconds: seconds })
       if (recording) task = await uploadRecording(task.id, recording)
+      setGuard(withGuard)
       setActive(task)
       await load()
     } catch (err) {
@@ -65,7 +73,7 @@ function HemScreen() {
 
       <View style={styles.hero}>
         {active ? (
-          <ActiveTimer task={active} onDone={handleDone} onSnooze={handleSnooze} />
+          <ActiveTimer task={active} guard={guard} onDone={handleDone} onSnooze={handleSnooze} />
         ) : (
           <TaskForm onAdd={handleAdd} onError={setError} />
         )}
@@ -81,6 +89,7 @@ function HemScreen() {
             task={item}
             isActive={item.id === active?.id}
             onCancel={() => setActive(null)}
+            onPress={() => navigation.navigate('Detalj', { task: item })}
           />
         )}
         ListEmptyComponent={!error && <Text style={styles.empty}>Inget att tjata om än.</Text>}

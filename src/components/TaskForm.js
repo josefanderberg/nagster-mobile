@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import * as Haptics from 'expo-haptics'
 import TimerRing from './TimerRing.js'
 import Recorder from './Recorder.js'
 import { useRecorder } from '../useRecorder.js'
 import { isSecondsMode, MIN_SECONDS, ringUnits, secondsFromPointer } from '../timerRing.js'
 import { clockTime, formatDuration } from '../time.js'
 import { colors } from '../theme.js'
+import { ClockIcon, LockIcon, PencilIcon, TimerIcon } from './icons.js'
 
 const DEFAULT_SECONDS = 25 * 60
 const DEFAULT_TITLE = 'Inspelat tjat'
@@ -15,6 +17,7 @@ function TaskForm({ onAdd, onError }) {
   const [seconds, setSeconds] = useState(DEFAULT_SECONDS)
   const [showClock, setShowClock] = useState(false)
   const [editing, setEditing] = useState(false)
+  const [guard, setGuard] = useState(false)
   const [saving, setSaving] = useState(false)
   const recorder = useRecorder(onError)
 
@@ -23,13 +26,27 @@ function TaskForm({ onAdd, onError }) {
   // Det räcker med antingen ett tjat eller en titel – båda behövs inte
   const canStart = Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null
 
+  // Ett lätt klick för varje steg man snurrar, som på en riktig ratt.
+  // Ett tydligare när ringen byter mellan sekunder och minuter.
+  function handlePointer(x, y, rect) {
+    const next = Math.max(MIN_SECONDS, secondsFromPointer(seconds, x, y, rect))
+    if (next === seconds) return
+
+    if (isSecondsMode(next) !== secondsMode) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    } else {
+      Haptics.selectionAsync()
+    }
+    setSeconds(next)
+  }
+
   async function handleStart() {
     if (!canStart || saving) return
 
     setSaving(true)
     // Pågår en inspelning stoppas den här, så att tjatet kommer med
     const audio = await recorder.stop()
-    await onAdd(title.trim() || DEFAULT_TITLE, seconds, audio)
+    await onAdd(title.trim() || DEFAULT_TITLE, seconds, audio, guard)
 
     setTitle('')
     setEditing(false)
@@ -45,14 +62,12 @@ function TaskForm({ onAdd, onError }) {
           label={showClock ? clockTime(seconds) : formatDuration(seconds)}
           color={secondsMode ? colors.seconds : colors.accent}
           mirrored={secondsMode}
-          onPointer={(x, y, rect) =>
-            setSeconds(Math.max(MIN_SECONDS, secondsFromPointer(seconds, x, y, rect)))
-          }
+          onPointer={handlePointer}
         />
 
         {/* Växlar mellan hur lång tid det är och vad klockan är när tiden gått ut */}
         <Pressable style={styles.cornerBtn} onPress={() => setShowClock((shown) => !shown)}>
-          <Text style={styles.cornerIcon}>{showClock ? '◷' : '◔'}</Text>
+          {showClock ? <TimerIcon color={colors.muted} /> : <ClockIcon color={colors.muted} />}
         </Pressable>
       </View>
 
@@ -69,7 +84,7 @@ function TaskForm({ onAdd, onError }) {
           />
         ) : (
           <Pressable style={styles.iconBtn} onPress={() => setEditing(true)}>
-            <Text style={styles.icon}>✎</Text>
+            <PencilIcon color={colors.muted} />
           </Pressable>
         )}
 
@@ -79,6 +94,15 @@ function TaskForm({ onAdd, onError }) {
           onStart={recorder.start}
           onStop={recorder.stop}
         />
+
+        {/* Rörelsevakten: larmar om telefonen plockas upp medan tiden går */}
+        <Pressable
+          style={[styles.iconBtn, guard && styles.guardOn]}
+          onPress={() => setGuard((on) => !on)}
+          accessibilityLabel="Lås mobilen på bordet"
+        >
+          <LockIcon color={guard ? colors.ok : colors.muted} />
+        </Pressable>
       </View>
 
       <Pressable
@@ -107,7 +131,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cornerIcon: { fontSize: 18, color: colors.muted },
   // Fast höjd, annars hoppar ringen när textrutan fälls ut
   actions: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 46 },
   iconBtn: {
@@ -120,7 +143,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  icon: { fontSize: 18, color: colors.muted },
+  guardOn: { borderColor: colors.ok, backgroundColor: '#e8f6ee' },
   input: {
     width: 240,
     height: 46,
