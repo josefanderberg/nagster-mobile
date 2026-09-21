@@ -5,7 +5,7 @@ import { DISARM_HOLD_MS } from '../useMotionGuard.js'
 const RED = '#c1121f'
 const WHITE = '#ffffff'
 
-// Innehållet på larmskärmen, i valfri färg. Ritas två gånger – se nedan.
+// Innehållet på larmskärmen, i valfri färg. Ritas två gånger - se nedan.
 function AlarmContent({ color }) {
   return (
     <View style={styles.content}>
@@ -19,7 +19,7 @@ function AlarmContent({ color }) {
 }
 
 // Den röda skärmen när telefonen plockats upp. Larmet går bara att stänga av
-// genom att hålla inne – så att man inte gör det på ren autopilot.
+// genom att hålla inne - så att man inte gör det på ren autopilot.
 //
 // Medan man håller fylls skärmen nerifrån med vitt, som en mätare, och färgerna
 // byter plats. Tricket: innehållet ritas två gånger, vitt på rött underst och
@@ -60,7 +60,7 @@ function GuardAlarm({ visible, onDisarm }) {
           <AlarmContent color={WHITE} />
         </View>
 
-        {/* Fyllnaden – släpper igenom fingret till skärmen under */}
+        {/* Fyllnaden - släpper igenom fingret till skärmen under */}
         <Animated.View pointerEvents="none" style={[styles.fill, { height: fillHeight }]}>
           <View style={[styles.layer, { height }]}>
             <AlarmContent color={RED} />
@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
   hold: { marginTop: 32, borderWidth: 2, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 24 },
   holdText: { fontSize: 16, fontWeight: '600', textAlign: 'center' },
   // Båda kopiorna ligger i varsin ruta som är lika hög som skärmen och
-  // förankrad i botten – då hamnar den röda exakt ovanpå den vita
+  // förankrad i botten - då hamnar den röda exakt ovanpå den vita
   layer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   // Växer uppåt från botten och klipper allt som sticker utanför
   fill: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden', backgroundColor: WHITE },

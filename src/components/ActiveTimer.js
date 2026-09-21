@@ -14,7 +14,7 @@ const SNOOZE_MINUTES = 10
 // Tjatet som är igång: ringen räknar ner och går inte att dra i.
 // Ett varv är en minut, så sekundvisaren syns tydligt.
 function ActiveTimer({ task, guard, onDone, onSnooze }) {
-  useKeepAwake() // skärmen får inte somna – då slutar accelerometern mäta
+  useKeepAwake() // skärmen får inte somna - då slutar accelerometern mäta
 
   const [secondsLeft, setSecondsLeft] = useState(task.durationSeconds)
   const [showClock, setShowClock] = useState(false)
@@ -44,7 +44,7 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
     }
   }, [expired, task.filePath, task.snoozeCount])
 
-  // Snooze ger tio minuter till – eller samma antal sekunder igen om tjatet
+  // Snooze ger tio minuter till - eller samma antal sekunder igen om tjatet
   // sattes i sekunder, så att man kan visa upp det snabbt.
   function handleSnooze() {
     stopNag.current?.()
@@ -62,7 +62,7 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
     guard.phase === 'arming'
       ? `Lägg mobilen på bordet … ${guard.armLeft}`
       : guard.phase === 'watching'
-        ? 'Vakten är på – rör inte mobilen'
+        ? 'Vakten är på - rör inte mobilen'
         : task.title
 
   return (

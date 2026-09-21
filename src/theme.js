@@ -12,7 +12,7 @@ export const colors = {
 }
 
 // Blandar en färg mot vitt. Webben gör detta med CSS color-mix, men den
-// funktionen finns inte i React Native – så vi räknar ut den själva.
+// funktionen finns inte i React Native - så vi räknar ut den själva.
 export function mixWithWhite(hex, strength) {
   const amount = Math.max(0, Math.min(100, strength)) / 100
   const channel = (offset) => {

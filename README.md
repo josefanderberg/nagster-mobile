@@ -1,4 +1,4 @@
-# Tjat – mobilapp
+# Tjat - mobilapp
 
 Mobilversionen av [Tjat](https://github.com/josefanderberg/nagster-web), byggd med React Native och Expo. Hämtar sin data från samma backend som webbappen: [nagster-api](https://github.com/josefanderberg/nagster-api).
 
@@ -40,6 +40,6 @@ Appen går också att köra i en simulator: tryck `i` för iOS eller `a` för An
 
 - **Expo** i stället för rent React Native: appen går att köra på en riktig telefon utan Xcode eller Android Studio, vilket gör den lätt att testa och visa upp.
 - **expo-audio** och inte `expo-av`: det senare är utfasat i SDK 54 och framåt.
-- **expo-sensors** för accelerometern och **expo-haptics** för vibrationen – båda funktionerna saknas helt i en webbläsare, och är själva anledningen till att appen finns som mobilapp.
+- **expo-sensors** för accelerometern och **expo-haptics** för vibrationen - båda funktionerna saknas helt i en webbläsare, och är själva anledningen till att appen finns som mobilapp.
 - **API-adressen hämtas automatiskt** från Expos egen värdadress, eftersom `localhost` på telefonen syftar på telefonen själv och inte på datorn.
 - **Ingen egen databas i mobilen**: samma backend som webben, så listan är densamma oavsett var man tittar.

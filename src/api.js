@@ -1,7 +1,7 @@
 import Constants from 'expo-constants'
 
 // Mobilen kan inte nå "localhost" (det vore telefonen själv).
-// Expo vet vilken dator som kör dev-servern – vi återanvänder den adressen
+// Expo vet vilken dator som kör dev-servern - vi återanvänder den adressen
 // och byter bara port till API:ets 5080.
 const devHost = Constants.expoConfig?.hostUri?.split(':')[0] ?? 'localhost'
 
@@ -17,7 +17,7 @@ async function request(path, options) {
   try {
     response = await fetch(`${BASE_URL}${path}`, options)
   } catch {
-    throw new Error(`Kunde inte nå servern (${BASE_URL}) – är API:et igång?`)
+    throw new Error(`Kunde inte nå servern (${BASE_URL}) - är API:et igång?`)
   }
   if (!response.ok) {
     throw new Error(`Servern svarade med fel (${response.status})`)

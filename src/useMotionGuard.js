@@ -2,12 +2,12 @@ import { useEffect, useRef, useState } from 'react'
 import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
 
-// Hur länge man måste hålla inne för att stänga av en låst vakt – både på
+// Hur länge man måste hålla inne för att stänga av en låst vakt - både på
 // larmskärmen och på låsknappen, så att det aldrig går att göra på autopilot
 export const DISARM_HOLD_MS = 3000
 
 const FLASH_MS = 250 // hur länge 3:an syns innan nedräkningen går vidare till 2
-// Siffran avrundas uppåt, så 3:an syns bara den första kvartssekunden –
+// Siffran avrundas uppåt, så 3:an syns bara den första kvartssekunden -
 // sen tar 2 och 1 en hel sekund var
 const ARM_MS = 2000 + FLASH_MS
 const TICK_MS = 100 // hur ofta nedräkningen kollar klockan
@@ -18,7 +18,7 @@ const STILL_THRESHOLD = 0.03 // skakning (i g) som fortfarande räknas som still
 const STILL_READINGS = 3 // stilla mätningar i rad för att godta ett nytt viloläge
 const FLAT = 0.9 // ligger platt när tyngdkraften nästan helt drar rakt genom skärmen
 // Systemvibrationen är den kraftigaste en app får använda. På iOS varar den
-// alltid ungefär 400 ms och mönstret är pauserna emellan – därför nästan inga
+// alltid ungefär 400 ms och mönstret är pauserna emellan - därför nästan inga
 // pauser alls. På Android är mönstret vänta/vibrera, så där en lång vibration.
 const ALARM_PATTERN = Platform.OS === 'ios' ? [0, 1] : [0, 1000]
 
@@ -27,7 +27,7 @@ function distance(a, b) {
 }
 
 // Rörelsevakten: när telefonen ligger still på bordet sparas dess läge. Rör man
-// den därifrån går larmet – och lägger man ner den igen tystnar det direkt.
+// den därifrån går larmet - och lägger man ner den igen tystnar det direkt.
 // Det är det som gör Tjat till en mobilapp: en webbläsare har varken
 // accelerometer eller vibration.
 //
@@ -42,7 +42,7 @@ export function useMotionGuard() {
   const armEndsAt = useRef(0)
 
   // Nedräkningen innan vakten låser. Den räknar från en fast sluttid i stället
-  // för att räkna ner steg för steg – annars blir varje steg lite för långt och
+  // för att räkna ner steg för steg - annars blir varje steg lite för långt och
   // tiden glider iväg. Siffran byter exakt på varje hel sekund.
   useEffect(() => {
     if (phase !== 'arming') return
@@ -55,7 +55,7 @@ export function useMotionGuard() {
     return () => clearInterval(interval)
   }, [phase])
 
-  // Mäter hela tiden medan vakten är på – även under larmet, för att märka
+  // Mäter hela tiden medan vakten är på - även under larmet, för att märka
   // när telefonen lagts tillbaka
   useEffect(() => {
     if (phase !== 'watching' && phase !== 'alarm') return
@@ -85,7 +85,7 @@ export function useMotionGuard() {
         return
       }
 
-      // Nedlagd i ett nytt läge (till exempel på en annan plats) – ligger den
+      // Nedlagd i ett nytt läge (till exempel på en annan plats) - ligger den
       // stilla och platt en kort stund blir det nya läget viloläget
       if (stillCount >= STILL_READINGS && Math.abs(reading.z) > FLAT) {
         resting.current = reading
@@ -96,7 +96,7 @@ export function useMotionGuard() {
     return () => subscription.remove()
   }, [phase])
 
-  // Larmet: systemvibrationen i så tät följd som telefonen tillåter. Bara den –
+  // Larmet: systemvibrationen i så tät följd som telefonen tillåter. Bara den -
   // de haptiska stötarna är svagare, och två vibrationer i olika takt glider i
   // och ur fas så att det känns som vågor.
   useEffect(() => {

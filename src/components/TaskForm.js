@@ -23,13 +23,13 @@ function TaskForm({ onAdd, onError, guard }) {
 
   const secondsMode = isSecondsMode(seconds)
 
-  // Ett tjat kräver en titel eller en inspelning – båda behövs inte.
+  // Ett tjat kräver en titel eller en inspelning - båda behövs inte.
   // Rörelsevakten räknas inte: den är en egen funktion som inte sparar något.
   const canStart = Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null
 
   // Ett klick för varje steg man snurrar, som på en riktig ratt. Telefonen
   // rapporterar fingret ungefär 60 gånger i sekunden, så snurrar man snabbt
-  // hinner ringen flytta flera steg mellan varje rapport – då blir klicket
+  // hinner ringen flytta flera steg mellan varje rapport - då blir klicket
   // kraftigare i stället, så att fart känns som mer vibration och inte mindre.
   function handlePointer(x, y, rect) {
     const next = Math.max(MIN_SECONDS, secondsFromPointer(seconds, x, y, rect))

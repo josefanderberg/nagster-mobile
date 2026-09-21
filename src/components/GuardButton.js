@@ -7,11 +7,11 @@ import { colors } from '../theme.js'
 const SIZE = 42
 const INNER = SIZE - 2 // innanför ramen
 
-// Knappen för rörelsevakten, uppe till höger om ringen – spegelvänd mot
+// Knappen för rörelsevakten, uppe till höger om ringen - spegelvänd mot
 // klockknappen till vänster.
 //
 // - Av: ett tryck slår på vakten.
-// - Nedräkning (3-2-1): ett tryck avbryter – man har bara ångrat sig.
+// - Nedräkning (3-2-1): ett tryck avbryter - man har bara ångrat sig.
 // - Låst: ett tryck gör ingenting. Man måste hålla inne i tre sekunder, precis
 //   som på larmskärmen. Annars kunde man lägga tillbaka telefonen när larmet
 //   gick och sen bara trycka bort vakten.
@@ -54,7 +54,7 @@ function GuardButton({ guard }) {
         onPress={handlePress}
         onPressIn={startHold}
         onPressOut={stopHold}
-        // Ett långt tryck ska inte räknas som ett vanligt tryck när man släpper –
+        // Ett långt tryck ska inte räknas som ett vanligt tryck när man släpper -
         // då skulle vakten slås på igen direkt efter att den stängts av
         onLongPress={() => {}}
         delayLongPress={400}

@@ -1,4 +1,4 @@
-// Uträkningarna bakom tidsratten. Ingen React och inget DOM här – bara matte,
+// Uträkningarna bakom tidsratten. Ingen React och inget DOM här - bara matte,
 // vilket gör dem lätta att läsa och att ändra utan att röra komponenten.
 
 export const MINUTES_PER_LAP = 60
@@ -12,7 +12,7 @@ const TAIL_STRENGTH = 6 // hur mycket färg svansen har kvar från början, i pr
 const RAMP = 3 // ju högre, desto längre håller sig ringen ljus innan den mättas
 
 // Under en minut räknar ringen sekunder i stället för minuter, så att ett varv
-// blir en minut. Det gör korta tider lätta att ställa in – och lätta att visa upp.
+// blir en minut. Det gör korta tider lätta att ställa in - och lätta att visa upp.
 export const MIN_SECONDS = 1
 const HALF_LAP = MINUTES_PER_LAP / 2
 
@@ -36,7 +36,7 @@ export function polar(units, mirrored = false) {
   return [CENTER + RADIUS * Math.sin(angle), CENTER - RADIUS * Math.cos(angle)]
 }
 
-// Var på varvet pekaren befinner sig, 0–59
+// Var på varvet pekaren befinner sig, 0-59
 function pointToLapMinutes(clientX, clientY, rect, mirrored = false) {
   const dx = clientX - (rect.left + rect.width / 2)
   const dy = clientY - (rect.top + rect.height / 2)
@@ -100,7 +100,7 @@ function arcPath(fromUnits, toUnits, mirrored) {
 // färg vid handtaget. Segmenten får en styrka i procent som komponenten
 // översätter till färg. Efter första varvet ritas alltid ett helt varv, så det är
 // tonningen som vandrar runt i stället för att ringen töms.
-// Färgerna är heltäckande (utblandade mot vitt) – vore de genomskinliga skulle
+// Färgerna är heltäckande (utblandade mot vitt) - vore de genomskinliga skulle
 // överlappen mellan segmenten synas som ränder.
 export function arcSegments(minutes, mirrored = false) {
   const lapMinutes = minutes % MINUTES_PER_LAP

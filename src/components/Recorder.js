@@ -2,7 +2,7 @@ import { Pressable, StyleSheet } from 'react-native'
 import { MicIcon, StopIcon } from './icons.js'
 import { colors } from '../theme.js'
 
-// Bara knappen – själva inspelningen sköts av useRecorder
+// Bara knappen - själva inspelningen sköts av useRecorder
 function Recorder({ isRecording, hasRecording, onStart, onStop }) {
   return (
     <Pressable

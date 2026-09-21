@@ -27,7 +27,7 @@ function HemScreen({ navigation }) {
   }, [])
 
   // Hämtar listan varje gång skärmen visas. Effekten får inte returnera
-  // load():s promise – bara en eventuell städfunktion – därav klamrarna.
+  // load():s promise - bara en eventuell städfunktion - därav klamrarna.
   useFocusEffect(
     useCallback(() => {
       load()
