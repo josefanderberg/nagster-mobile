@@ -2,7 +2,10 @@ import { useEffect, useRef, useState } from 'react'
 import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
 
-const ARM_MS = 3000 // tid att lägga ner telefonen innan vakten låser
+const FLASH_MS = 250 // hur länge 3:an syns innan nedräkningen går vidare till 2
+// Siffran avrundas uppåt, så 3:an syns bara den första kvartssekunden –
+// sen tar 2 och 1 en hel sekund var
+const ARM_MS = 2000 + FLASH_MS
 const TICK_MS = 100 // hur ofta nedräkningen kollar klockan
 const SAMPLE_MS = 100 // hur ofta accelerometern läses av
 const MOVE_THRESHOLD = 0.18 // rörelse (i g) från viloläget som räknas som upplockad
@@ -30,7 +33,7 @@ function distance(a, b) {
 // Faser: 'off' → 'arming' (nedräkning) → 'watching' ⇄ 'alarm'
 export function useMotionGuard() {
   const [phase, setPhase] = useState('off')
-  const [armLeft, setArmLeft] = useState(ARM_MS / 1000)
+  const [armLeft, setArmLeft] = useState(Math.ceil(ARM_MS / 1000))
   const resting = useRef(null)
   const armEndsAt = useRef(0)
 
@@ -100,7 +103,7 @@ export function useMotionGuard() {
 
   function arm() {
     armEndsAt.current = Date.now() + ARM_MS
-    setArmLeft(ARM_MS / 1000)
+    setArmLeft(Math.ceil(ARM_MS / 1000))
     setPhase('arming')
   }
 
