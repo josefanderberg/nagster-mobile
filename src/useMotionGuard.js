@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react'
 import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
 
-const ARM_SECONDS = 5 // tid att lägga ner telefonen innan vakten låser
+const ARM_MS = 3000 // tid att lägga ner telefonen innan vakten låser
+const TICK_MS = 100 // hur ofta nedräkningen kollar klockan
 const SAMPLE_MS = 100 // hur ofta accelerometern läses av
 const MOVE_THRESHOLD = 0.18 // rörelse (i g) från viloläget som räknas som upplockad
 const RETURN_THRESHOLD = 0.08 // så nära viloläget räknas som tillbakalagd
@@ -29,19 +30,23 @@ function distance(a, b) {
 // Faser: 'off' → 'arming' (nedräkning) → 'watching' ⇄ 'alarm'
 export function useMotionGuard() {
   const [phase, setPhase] = useState('off')
-  const [armLeft, setArmLeft] = useState(ARM_SECONDS)
+  const [armLeft, setArmLeft] = useState(ARM_MS / 1000)
   const resting = useRef(null)
+  const armEndsAt = useRef(0)
 
-  // Nedräkningen innan vakten låser
+  // Nedräkningen innan vakten låser. Den räknar från en fast sluttid i stället
+  // för att räkna ner steg för steg – annars blir varje steg lite för långt och
+  // tiden glider iväg. Siffran byter exakt på varje hel sekund.
   useEffect(() => {
     if (phase !== 'arming') return
-    const timeout = setTimeout(() => {
-      if (armLeft > 1) return setArmLeft((left) => left - 1)
+    const interval = setInterval(() => {
+      const left = armEndsAt.current - Date.now()
+      if (left > 0) return setArmLeft(Math.ceil(left / 1000))
       resting.current = null // första mätningen blir viloläget
       setPhase('watching')
-    }, 1000)
-    return () => clearTimeout(timeout)
-  }, [phase, armLeft])
+    }, TICK_MS)
+    return () => clearInterval(interval)
+  }, [phase])
 
   // Mäter hela tiden medan vakten är på – även under larmet, för att märka
   // när telefonen lagts tillbaka
@@ -94,7 +99,8 @@ export function useMotionGuard() {
   }, [phase])
 
   function arm() {
-    setArmLeft(ARM_SECONDS)
+    armEndsAt.current = Date.now() + ARM_MS
+    setArmLeft(ARM_MS / 1000)
     setPhase('arming')
   }
 
