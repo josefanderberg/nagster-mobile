@@ -7,7 +7,8 @@ import { useRecorder } from '../useRecorder.js'
 import { isSecondsMode, MIN_SECONDS, ringUnits, secondsFromPointer } from '../timerRing.js'
 import { clockTime, formatDuration } from '../time.js'
 import { colors } from '../theme.js'
-import { ClockIcon, LockIcon, PencilIcon, TimerIcon } from './icons.js'
+import { ClockIcon, PencilIcon, TimerIcon } from './icons.js'
+import GuardButton from './GuardButton.js'
 
 const DEFAULT_SECONDS = 25 * 60
 const DEFAULT_TITLE = 'Inspelat tjat'
@@ -84,6 +85,8 @@ function TaskForm({ onAdd, onError, guard }) {
         <Pressable style={styles.cornerBtn} onPress={() => setShowClock((shown) => !shown)}>
           {showClock ? <TimerIcon color={colors.muted} /> : <ClockIcon color={colors.muted} />}
         </Pressable>
+
+        <GuardButton guard={guard} />
       </View>
 
       <View style={styles.actions}>
@@ -112,20 +115,6 @@ function TaskForm({ onAdd, onError, guard }) {
           onStop={recorder.stop}
         />
 
-        {/* Rörelsevakten: slås på direkt, oberoende av tjatet. Siffran är
-            nedräkningen innan den låser. */}
-        <Pressable
-          style={[styles.iconBtn, guard.isOn && styles.guardOn]}
-          onPress={guard.isOn ? guard.disarm : guard.arm}
-          accessibilityLabel={guard.isOn ? 'Stäng av vakten' : 'Lås mobilen på bordet'}
-        >
-          <LockIcon color={guard.isOn ? colors.accent : colors.muted} />
-          {guard.phase === 'arming' && (
-            <View style={styles.armBadge}>
-              <Text style={styles.armBadgeText}>{guard.armLeft}</Text>
-            </View>
-          )}
-        </Pressable>
       </View>
 
       <Pressable
@@ -166,19 +155,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  guardOn: { borderColor: colors.accent },
-  armBadge: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    minWidth: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  armBadgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
   input: {
     width: 240,
     height: 46,

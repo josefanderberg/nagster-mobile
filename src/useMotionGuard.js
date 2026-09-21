@@ -1,23 +1,29 @@
 import { useEffect, useRef, useState } from 'react'
-import { Vibration } from 'react-native'
+import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
 import * as Haptics from 'expo-haptics'
 
 const ARM_SECONDS = 5 // tid att lägga ner telefonen innan vakten låser
-const SAMPLE_MS = 150 // hur ofta accelerometern läses av
-const MOVE_THRESHOLD = 0.18 // rörelse (i g) som räknas som att den plockats upp
+const SAMPLE_MS = 100 // hur ofta accelerometern läses av
+const MOVE_THRESHOLD = 0.18 // rörelse (i g) från viloläget som räknas som upplockad
+const RETURN_THRESHOLD = 0.08 // så nära viloläget räknas som tillbakalagd
 const STILL_THRESHOLD = 0.03 // skakning (i g) som fortfarande räknas som stilla
-const STILL_READINGS = 7 // så många stilla mätningar i rad (≈ 1 sekund) = nedlagd
+const STILL_READINGS = 3 // stilla mätningar i rad för att godta ett nytt viloläge
 const FLAT = 0.9 // ligger platt när tyngdkraften nästan helt drar rakt genom skärmen
-const BUZZ_INTERVAL = 600 // ms mellan vibrationerna i larmet
+const HAPTIC_MS = 90 // tätt mellan de haptiska stötarna ovanpå vibrationen
+
+// iOS vibrerar alltid ungefär 400 ms åt gången och tolkar mönstret som pauser
+// mellan vibrationerna – därför nästan inga pauser. Android tolkar mönstret som
+// vänta/vibrera, så där räcker en lång vibration som upprepas.
+const VIBRATION_PATTERN = Platform.OS === 'ios' ? [0, 1] : [0, 1000]
 
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
 }
 
 // Rörelsevakten: när telefonen ligger still på bordet sparas dess läge. Rör man
-// den därifrån går larmet – och lägger man ner den igen tystnar det av sig
-// självt. Det är det som gör Tjat till en mobilapp: en webbläsare har varken
+// den därifrån går larmet – och lägger man ner den igen tystnar det direkt.
+// Det är det som gör Tjat till en mobilapp: en webbläsare har varken
 // accelerometer eller vibration.
 //
 // Vakten är fristående från tjat-timern: den sparar ingenting och kan köras
@@ -63,8 +69,15 @@ export function useMotionGuard() {
         return
       }
 
-      // Larm: stilla en stund och platt mot bordet = nedlagd igen.
-      // Det nya läget blir viloläget, så den får gärna ligga lite annorlunda.
+      // Tillbaka i samma läge som förut → tyst direkt, redan vid första mätningen.
+      // Gränsen är snävare än för att larma, så att det inte slår av och på i kanten.
+      if (distance(reading, resting.current) < RETURN_THRESHOLD) {
+        setPhase('watching')
+        return
+      }
+
+      // Nedlagd i ett nytt läge (till exempel på en annan plats) – ligger den
+      // stilla och platt en kort stund blir det nya läget viloläget
       if (stillCount >= STILL_READINGS && Math.abs(reading.z) > FLAT) {
         resting.current = reading
         setPhase('watching')
@@ -74,15 +87,15 @@ export function useMotionGuard() {
     return () => subscription.remove()
   }, [phase])
 
-  // Larmet: ihållande vibration tills telefonen läggs ner eller vakten stängs av
+  // Larmet: så konstant och hårt som telefonen tillåter. En upprepad vibration
+  // i botten och täta, kraftiga haptiska stötar ovanpå.
   useEffect(() => {
     if (phase !== 'alarm') return
-    const buzz = () => {
-      Vibration.vibrate(400)
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy)
-    }
-    buzz()
-    const interval = setInterval(buzz, BUZZ_INTERVAL)
+    Vibration.vibrate(VIBRATION_PATTERN, true)
+    const interval = setInterval(
+      () => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy),
+      HAPTIC_MS
+    )
 
     return () => {
       clearInterval(interval)

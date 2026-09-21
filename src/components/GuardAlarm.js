@@ -53,7 +53,7 @@ function GuardAlarm({ visible, onDisarm }) {
   const fillHeight = fill.interpolate({ inputRange: [0, 1], outputRange: [0, height] })
 
   return (
-    <Modal visible={visible} animationType="fade" statusBarTranslucent>
+    <Modal visible={visible} animationType="none" statusBarTranslucent>
       {/* Exakt skärmens mått, i stället för att lita på att rutan fyller sig själv */}
       <Pressable style={[styles.screen, { width, height }]} onPressIn={startHold} onPressOut={stopHold}>
         <View style={[styles.layer, { height }]}>
