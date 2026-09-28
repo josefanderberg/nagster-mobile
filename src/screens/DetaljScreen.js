@@ -1,13 +1,13 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
-import { fileUrl } from '../api.js'
+import { deleteTask, fileUrl } from '../api.js'
 import { formatDuration } from '../time.js'
 import { colors } from '../theme.js'
 
 // Detaljvyn för ett tjat: allt som är sparat om det, plus möjligheten att
 // lyssna på inspelningen igen.
-function DetaljScreen({ route }) {
-  const { task } = route.params
+function DetaljScreen({ route, navigation }) {
+  const { task, canDelete } = route.params
   const player = useAudioPlayer(task.filePath ? fileUrl(task.filePath) : null)
   const status = useAudioPlayerStatus(player)
 
@@ -26,6 +26,22 @@ function DetaljScreen({ route }) {
       player.seekTo(0)
       player.play()
     }
+  }
+
+  // På mobilen bekräftas borttagning med en systemdialog - det går inte att ångra.
+  // Hem hämtar listan på nytt när den visas, så det räcker att gå tillbaka.
+  function confirmDelete() {
+    Alert.alert('Ta bort tjatet?', 'Inspelningen raderas också.', [
+      { text: 'Avbryt', style: 'cancel' },
+      {
+        text: 'Ta bort',
+        style: 'destructive',
+        onPress: () =>
+          deleteTask(task.id)
+            .then(() => navigation.goBack())
+            .catch((err) => Alert.alert('Kunde inte ta bort', err.message)),
+      },
+    ])
   }
 
   return (
@@ -50,6 +66,12 @@ function DetaljScreen({ route }) {
         </Pressable>
       ) : (
         <Text style={styles.noAudio}>Inget inspelat tjat</Text>
+      )}
+
+      {canDelete && (
+        <Pressable style={styles.deleteBtn} onPress={confirmDelete}>
+          <Text style={styles.deleteText}>Ta bort tjatet</Text>
+        </Pressable>
       )}
     </View>
   )
@@ -103,6 +125,14 @@ const styles = StyleSheet.create({
   },
   playText: { color: '#fff', fontWeight: '600', fontSize: 16 },
   noAudio: { color: colors.muted, textAlign: 'center' },
+  deleteBtn: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteText: { color: colors.accentDark, fontWeight: '600', fontSize: 16 },
 })
 
 export default DetaljScreen

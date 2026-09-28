@@ -94,7 +94,10 @@ function HemScreen({ navigation }) {
             task={item}
             isActive={item.id === active?.id}
             onCancel={() => setActive(null)}
-            onPress={() => navigation.navigate('Detalj', { task: item })}
+            // Ett pågående tjat får inte tas bort - timern spelar fortfarande dess fil
+            onPress={() =>
+              navigation.navigate('Detalj', { task: item, canDelete: item.id !== active?.id })
+            }
           />
         )}
         ListEmptyComponent={!error && <Text style={styles.empty}>Inget att tjata om än.</Text>}

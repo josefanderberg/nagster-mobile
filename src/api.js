@@ -22,6 +22,8 @@ async function request(path, options) {
   if (!response.ok) {
     throw new Error(`Servern svarade med fel (${response.status})`)
   }
+  // 204 No Content har ingen kropp att tolka, till exempel efter DELETE
+  if (response.status === 204) return null
   return response.json()
 }
 
@@ -43,6 +45,10 @@ export function updateTask(id, task) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(task),
   })
+}
+
+export function deleteTask(id) {
+  return request(`/api/tasks/${id}`, { method: 'DELETE' })
 }
 
 // I React Native bifogas filer som { uri, name, type } i FormData.
