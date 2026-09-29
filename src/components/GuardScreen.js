@@ -9,7 +9,7 @@ const RED = '#c1121f'
 const WHITE = '#ffffff'
 const HINT_MS = 2500
 
-// Larmets innehåll i valfri färg. Ritas två gånger - se nedan.
+// Larmets innehåll i valfri färg. Ritas två gånger, se nedan.
 function AlarmContent({ color }) {
   return (
     <View style={styles.content}>
@@ -22,17 +22,9 @@ function AlarmContent({ color }) {
   )
 }
 
-// Skärmen medan rörelsevakten är låst. Två lägen i samma modal:
-//
-// - Låst: helsvart, så att telefonen ser avstängd ut och huvudsidan inte syns.
-//   På en OLED-skärm är svarta pixlar helt släckta, vilket sparar batteri.
-// - Larm: röd, när telefonen plockats upp.
-//
-// Det är en och samma modal med två lägen, inte två modaler: iOS kan krångla
-// när en modal stängs samtidigt som en annan öppnas, och då kunde larmet utebli.
-//
-// Vakten stängs bara av genom att hålla inne i tre sekunder, var som helst på
-// skärmen. Under tiden fylls skärmen nerifrån som en mätare.
+// Skärmen medan vakten är låst: svart normalt, röd vid larm. Ett enda modal-
+// fönster med två lägen, eftersom iOS kan krångla när en modal stängs samtidigt
+// som en annan öppnas. Stängs av genom att hålla inne i tre sekunder.
 function GuardScreen({ phase, onDisarm }) {
   const { width, height } = useWindowDimensions()
   const hold = useHoldToConfirm(onDisarm)
@@ -66,8 +58,7 @@ function GuardScreen({ phase, onDisarm }) {
       >
         {alarm ? (
           <>
-            {/* Innehållet ritas två gånger: vitt på rött underst och rött på vitt
-                i fyllnaden, som klipper bort det som sticker upp */}
+            {/* Vitt på rött underst, rött på vitt i fyllnaden som klipper */}
             <View style={[styles.layer, { height }]}>
               <AlarmContent color={WHITE} />
             </View>
@@ -93,10 +84,8 @@ function GuardScreen({ phase, onDisarm }) {
 }
 
 const styles = StyleSheet.create({
-  // Lika hög som skärmen och förankrad i botten, så att båda kopiorna av
-  // larmet hamnar exakt ovanpå varandra
+  // Lika hög som skärmen, så att båda kopiorna hamnar exakt ovanpå varandra
   layer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
-  // Växer uppåt från botten och klipper allt som sticker utanför
   fill: { position: 'absolute', left: 0, right: 0, bottom: 0, overflow: 'hidden' },
   center: { alignItems: 'center', justifyContent: 'center' },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
