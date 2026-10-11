@@ -10,7 +10,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.josefanderberg.tjat",
       "infoPlist": {
-        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true },
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        },
         "NSLocalNetworkUsageDescription": "Tjat pratar med din server på hemmanätet för att spara tjat och inspelningar."
       },
       "entitlements": {
@@ -36,7 +38,8 @@
           "microphonePermission": "Tjat behöver mikrofonen för att spela in ditt tjat med din egen röst."
         }
       ],
-      "expo-notifications"
+      "expo-notifications",
+      "expo-asset"
     ]
   }
 }
