@@ -12,6 +12,9 @@
       "infoPlist": {
         "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true },
         "NSLocalNetworkUsageDescription": "Tjat pratar med din server på hemmanätet för att spara tjat och inspelningar."
+      },
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
       }
     },
     "android": {
