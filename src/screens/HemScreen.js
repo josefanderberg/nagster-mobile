@@ -1,21 +1,30 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import * as Notifications from 'expo-notifications'
 import { createTask, getTasks, updateTask, uploadRecording } from '../api.js'
+import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
+import { localSoundUri, saveLocalSound, soundName } from '../sounds.js'
+import { clearActive, loadActive, saveActive } from '../activeStore.js'
 import TaskForm from '../components/TaskForm.js'
 import ActiveTimer from '../components/ActiveTimer.js'
 import TaskCard from '../components/TaskCard.js'
 import ErrorBanner from '../components/ErrorBanner.js'
 import GuardScreen from '../components/GuardScreen.js'
 import { useMotionGuard } from '../useMotionGuard.js'
+import { isSecondsMode } from '../timerRing.js'
 import { colors } from '../theme.js'
+
+const SNOOZE_MINUTES = 10
 
 function HemScreen({ navigation }) {
   const [tasks, setTasks] = useState([])
   const [active, setActive] = useState(null) // bara ett tjat åt gången
+  const [endsAt, setEndsAt] = useState(null) // fast sluttid, överlever bakgrund
+  const [restored, setRestored] = useState(false)
   const [error, setError] = useState(null)
   // Vakten bor här och inte i formuläret, så att den lever vidare när ett tjat startas
-  const guard = useMotionGuard()
+  const guard = useMotionGuard(active ? localSoundUri(active.id) : null)
 
   const load = useCallback(() => {
     return getTasks()
@@ -34,23 +43,70 @@ function HemScreen({ navigation }) {
     }, [load])
   )
 
+  // Återupptar ett pågående tjat efter att appen startats om
+  useEffect(() => {
+    const saved = loadActive()
+    if (!saved) {
+      setRestored(true)
+      return
+    }
+    getTasks()
+      .then((data) => {
+        setTasks(data)
+        const task = data.find((item) => item.id === saved.taskId)
+        if (task && task.status === 'pending') {
+          // Även en passerad sluttid återställs - timern visar 0 och tjatar
+          setActive(task)
+          setEndsAt(saved.endsAt)
+        } else {
+          clearActive()
+        }
+      })
+      .catch(() => {}) // nås inte servern laddar fokus-effekten om senare
+      .finally(() => setRestored(true))
+  }, [])
+
+  // Avslutar det aktiva tjatet: inga fler notiser och inget sparat minne
+  function stopActive() {
+    setActive(null)
+    setEndsAt(null)
+    cancelAlarm()
+    clearActive()
+  }
+
   async function handleAdd(title, seconds, recording) {
     try {
       // Uppgiften skapas först, sedan kopplas inspelningen till den.
       // Svaret från uppladdningen innehåller sökvägen till ljudet.
       let task = await createTask({ title, durationSeconds: seconds })
       if (recording) task = await uploadRecording(task.id, recording)
+
+      // Lokal kopia i Library/Sounds gör att notisen tjatar med din röst
+      const sound = recording ? saveLocalSound(task.id, recording) : null
+      const ends = Date.now() + seconds * 1000
+      if (await ensureNotificationPermission()) await scheduleAlarm(task, ends, sound)
+
       setActive(task)
+      setEndsAt(ends)
+      saveActive(task.id, ends)
       await load()
     } catch (err) {
       setError(err.message)
     }
   }
 
+  // Snooze ger tio minuter till - eller samma antal sekunder igen om tjatet
+  // sattes i sekunder, så att man kan visa upp det snabbt.
   async function handleSnooze() {
     const snoozed = { ...active, snoozeCount: active.snoozeCount + 1 }
+    const extraSeconds = isSecondsMode(active.durationSeconds) ? active.durationSeconds : SNOOZE_MINUTES * 60
+    const ends = Date.now() + extraSeconds * 1000
+
     setActive(snoozed)
+    setEndsAt(ends)
+    saveActive(snoozed.id, ends)
     try {
+      await scheduleAlarm(snoozed, ends, localSoundUri(snoozed.id) ? soundName(snoozed.id) : null)
       await updateTask(snoozed.id, snoozed)
       await load()
     } catch (err) {
@@ -60,7 +116,7 @@ function HemScreen({ navigation }) {
 
   async function handleDone() {
     const finished = { ...active, status: 'done' }
-    setActive(null)
+    stopActive()
     try {
       await updateTask(finished.id, finished)
       await load()
@@ -69,6 +125,23 @@ function HemScreen({ navigation }) {
     }
   }
 
+  // Knapptryck på notisen: Klart eller Snooza. Hooken fångar även trycket
+  // som startade appen kallt, därför väntar vi in återställningen först.
+  const lastResponse = Notifications.useLastNotificationResponse()
+  const handledResponse = useRef(null)
+
+  useEffect(() => {
+    if (!restored || !lastResponse || !active) return
+    if (lastResponse.notification.request.content.data?.taskId !== active.id) return
+    const id = lastResponse.notification.request.identifier
+    if (handledResponse.current === id) return
+    handledResponse.current = id
+
+    if (lastResponse.actionIdentifier === 'done') handleDone()
+    else if (lastResponse.actionIdentifier === 'snooze') handleSnooze()
+    // ett vanligt tryck öppnar bara appen
+  }, [restored, lastResponse, active])
+
   return (
     <View style={styles.screen}>
       <ErrorBanner message={error} onRetry={load} />
@@ -76,7 +149,7 @@ function HemScreen({ navigation }) {
       {/* Tryck utanför textrutan fäller ner tangentbordet, så Starta syns igen */}
       <Pressable style={styles.hero} onPress={Keyboard.dismiss} accessible={false}>
         {active ? (
-          <ActiveTimer task={active} guard={guard} onDone={handleDone} onSnooze={handleSnooze} />
+          <ActiveTimer task={active} endsAt={endsAt} guard={guard} onDone={handleDone} onSnooze={handleSnooze} />
         ) : (
           <TaskForm onAdd={handleAdd} onError={setError} guard={guard} />
         )}
@@ -93,7 +166,7 @@ function HemScreen({ navigation }) {
           <TaskCard
             task={item}
             isActive={item.id === active?.id}
-            onCancel={() => setActive(null)}
+            onCancel={stopActive}
             // Ett pågående tjat får inte tas bort - timern spelar fortfarande dess fil
             onPress={() =>
               navigation.navigate('Detalj', { task: item, canDelete: item.id !== active?.id })

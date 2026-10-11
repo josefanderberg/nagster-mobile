@@ -69,7 +69,11 @@ export async function scheduleAlarm(task, endsAt, soundFile) {
   }
 }
 
-// Appen har bara en larmserie, så allt kan avbokas i klump
+// Appen har bara en larmserie, så allt kan avbokas i klump.
+// Redan visade notiser plockas också bort ur notiscentret.
 export function cancelAlarm() {
-  return Notifications.cancelAllScheduledNotificationsAsync()
+  return Promise.all([
+    Notifications.cancelAllScheduledNotificationsAsync(),
+    Notifications.dismissAllNotificationsAsync(),
+  ])
 }

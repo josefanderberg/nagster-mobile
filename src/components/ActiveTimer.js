@@ -1,39 +1,54 @@
-import { useEffect, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useKeepAwake } from 'expo-keep-awake'
 import TimerRing from './TimerRing.js'
 import { ClockIcon, TimerIcon } from './icons.js'
 import { fileUrl } from '../api.js'
+import { localSoundUri } from '../sounds.js'
 import { playNag } from '../nag.js'
 import { isSecondsMode } from '../timerRing.js'
 import { clockTime, formatCountdown } from '../time.js'
 import { colors } from '../theme.js'
 
-const SNOOZE_MINUTES = 10
-
 // Tjatet som är igång: ringen räknar ner och går inte att dra i.
 // Ett varv är en minut, så sekundvisaren syns tydligt.
-function ActiveTimer({ task, guard, onDone, onSnooze }) {
+function ActiveTimer({ task, endsAt, guard, onDone, onSnooze }) {
   useKeepAwake() // skärmen får inte somna - då slutar accelerometern mäta
 
-  const [secondsLeft, setSecondsLeft] = useState(task.durationSeconds)
+  // Tiden kvar härleds ur en fast sluttid i stället för att räknas ner,
+  // så att den stämmer även efter en stund i bakgrunden.
+  const [now, setNow] = useState(() => Date.now())
   const [showClock, setShowClock] = useState(false)
   const stopNag = useRef(null)
 
+  const secondsLeft = Math.max(0, Math.ceil((endsAt - now) / 1000))
   const expired = secondsLeft === 0
 
   useEffect(() => {
-    if (expired) return
-    const interval = setInterval(() => setSecondsLeft((left) => Math.max(0, left - 1)), 1000)
-    return () => clearInterval(interval)
-  }, [expired])
+    const tick = () => setNow(Date.now())
+    const interval = setInterval(tick, 250)
+    // Tillbaka från bakgrunden: synka direkt i stället för att vänta på ticket
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') tick()
+    })
+    return () => {
+      clearInterval(interval)
+      subscription.remove()
+    }
+  }, [])
+
+  // Den lokala kopian funkar utan server - annars strömmas filen från API:et
+  const source = useMemo(
+    () => localSoundUri(task.id) ?? (task.filePath ? fileUrl(task.filePath) : null),
+    [task.id, task.filePath]
+  )
 
   // När tiden går ut börjar rösten tjata
   useEffect(() => {
-    if (!expired || !task.filePath) return
+    if (!expired || !source) return
     let cancelled = false
 
-    playNag(fileUrl(task.filePath), task.snoozeCount).then((stop) => {
+    playNag(source, task.snoozeCount).then((stop) => {
       if (cancelled) stop()
       else stopNag.current = stop
     })
@@ -42,14 +57,11 @@ function ActiveTimer({ task, guard, onDone, onSnooze }) {
       cancelled = true
       stopNag.current?.()
     }
-  }, [expired, task.filePath, task.snoozeCount])
+  }, [expired, source, task.snoozeCount])
 
-  // Snooze ger tio minuter till - eller samma antal sekunder igen om tjatet
-  // sattes i sekunder, så att man kan visa upp det snabbt.
+  // Själva snooze-tiden räknas ut i HemScreen, som också bokar om notisen
   function handleSnooze() {
     stopNag.current?.()
-    const extra = isSecondsMode(task.durationSeconds) ? task.durationSeconds : SNOOZE_MINUTES * 60
-    setSecondsLeft(extra)
     onSnooze()
   }
 

@@ -1,6 +1,7 @@
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
 import { deleteTask, fileUrl } from '../api.js'
+import { deleteLocalSound } from '../sounds.js'
 import { formatDuration } from '../time.js'
 import { colors } from '../theme.js'
 
@@ -38,7 +39,10 @@ function DetaljScreen({ route, navigation }) {
         style: 'destructive',
         onPress: () =>
           deleteTask(task.id)
-            .then(() => navigation.goBack())
+            .then(() => {
+              deleteLocalSound(task.id) // den lokala notisljudskopian ska också bort
+              navigation.goBack()
+            })
             .catch((err) => Alert.alert('Kunde inte ta bort', err.message)),
       },
     ])
