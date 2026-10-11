@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
+import { setAudioModeAsync } from 'expo-audio'
+import { playNag } from './nag.js'
 
 export const DISARM_HOLD_MS = 3000
 
@@ -20,9 +22,10 @@ function distance(a, b) {
 }
 
 // Rörelsevakten sparar telefonens läge på bordet och larmar om den flyttas.
-// Fristående från tjat-timern och sparar ingenting.
+// Fristående från tjat-timern och sparar ingenting. alarmSoundUri är det
+// aktiva tjatets lokala inspelning - finns den skäller den med i larmet.
 // Faser: 'off' -> 'arming' -> 'watching' <-> 'alarm'
-export function useMotionGuard() {
+export function useMotionGuard(alarmSoundUri) {
   const [phase, setPhase] = useState('off')
   const [armLeft, setArmLeft] = useState(Math.ceil(ARM_MS / 1000))
   const resting = useRef(null)
@@ -78,12 +81,30 @@ export function useMotionGuard() {
     return () => subscription.remove()
   }, [phase])
 
-  // Systemvibrationen är den kraftigaste en app får använda
+  // Systemvibrationen är den kraftigaste en app får använda - och finns en
+  // inspelning skäller rösten med på maxvolym, även med ljudlös-knappen på
   useEffect(() => {
     if (phase !== 'alarm') return
     Vibration.vibrate(ALARM_PATTERN, true)
-    return () => Vibration.cancel()
-  }, [phase])
+
+    let stopVoice = null
+    let cancelled = false
+    if (alarmSoundUri) {
+      setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'doNotMix' })
+        .then(() => playNag(alarmSoundUri, 2)) // snooze 2 = maxvolym, lite gällare
+        .then((stop) => {
+          if (cancelled) stop()
+          else stopVoice = stop
+        })
+        .catch(() => {}) // utan ljud larmar vibrationen ändå
+    }
+
+    return () => {
+      cancelled = true
+      Vibration.cancel()
+      stopVoice?.()
+    }
+  }, [phase, alarmSoundUri])
 
   function arm() {
     armEndsAt.current = Date.now() + ARM_MS
