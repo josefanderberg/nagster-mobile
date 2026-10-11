@@ -7,9 +7,15 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.josefanderberg.tjat",
+      "infoPlist": {
+        "NSAppTransportSecurity": { "NSAllowsLocalNetworking": true },
+        "NSLocalNetworkUsageDescription": "Tjat pratar med din server på hemmanätet för att spara tjat och inspelningar."
+      }
     },
     "android": {
+      "package": "com.josefanderberg.tjat",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -21,7 +27,13 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-audio"
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Tjat behöver mikrofonen för att spela in ditt tjat med din egen röst."
+        }
+      ],
+      "expo-notifications"
     ]
   }
 }

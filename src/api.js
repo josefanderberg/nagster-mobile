@@ -1,15 +1,15 @@
 import Constants from 'expo-constants'
 
 // Mobilen kan inte nå "localhost" (det vore telefonen själv).
-// Expo vet vilken dator som kör dev-servern - vi återanvänder den adressen
+// I dev vet Expo vilken dator som kör Metro - vi återanvänder den adressen
 // och byter bara port till API:ets 5080.
-const devHost = Constants.expoConfig?.hostUri?.split(':')[0] ?? 'localhost'
+const devHost = Constants.expoConfig?.hostUri?.split(':')[0]
 
-// I tunnelläge pekar hostUri på Expos tunnel (…exp.direct), inte på datorn som
-// kör API:et. Då används adressen nedan i stället. Sätt EXPO_PUBLIC_API_HOST
-// när du startar Expo om datorn har en annan adress.
-const LAN_FALLBACK = process.env.EXPO_PUBLIC_API_HOST ?? 'localhost'
-const host = devHost.includes('exp.direct') ? LAN_FALLBACK : devHost
+// I ett fristående bygge finns ingen hostUri alls, och i tunnelläge pekar den
+// på Expos tunnel (…exp.direct), inte på datorn som kör API:et. Båda fallen
+// använder adressen som bakades in vid bygget (EXPO_PUBLIC_API_HOST i eas.json).
+const envHost = process.env.EXPO_PUBLIC_API_HOST
+const host = !devHost || devHost.includes('exp.direct') ? (envHost ?? 'localhost') : devHost
 const BASE_URL = `http://${host}:5080`
 
 async function request(path, options) {
@@ -52,9 +52,15 @@ export function deleteTask(id) {
 }
 
 // I React Native bifogas filer som { uri, name, type } i FormData.
+// iOS spelar in wav (för notisljudet), Android m4a.
 export function uploadRecording(id, localUri) {
+  const wav = localUri.endsWith('.wav')
   const form = new FormData()
-  form.append('file', { uri: localUri, name: 'tjat.m4a', type: 'audio/m4a' })
+  form.append('file', {
+    uri: localUri,
+    name: wav ? 'tjat.wav' : 'tjat.m4a',
+    type: wav ? 'audio/wav' : 'audio/m4a',
+  })
   return request(`/api/tasks/${id}/file`, { method: 'POST', body: form })
 }
 
