@@ -1,12 +1,30 @@
 import { useState } from 'react'
-import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio'
+import { Platform } from 'react-native'
+import { IOSOutputFormat, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio'
+
+// iOS spelar bara upp notisljud i okomprimerade format, därför wav där.
+// Android kan inte spela in wav och behåller m4a. Mono räcker gott för röst
+// och halverar filstorleken.
+const RECORDING_OPTIONS = {
+  ...RecordingPresets.HIGH_QUALITY,
+  extension: Platform.OS === 'ios' ? '.wav' : '.m4a',
+  numberOfChannels: 1,
+  ios: {
+    ...RecordingPresets.HIGH_QUALITY.ios,
+    extension: '.wav',
+    outputFormat: IOSOutputFormat.LINEARPCM,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
+}
 
 // Sköter mikrofonen. Samma gränssnitt som webbens useRecorder, men med
 // expo-audio i stället för webbläsarens MediaRecorder.
 export function useRecorder(onError) {
   const [isRecording, setIsRecording] = useState(false)
   const [audio, setAudio] = useState(null)
-  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
+  const recorder = useAudioRecorder(RECORDING_OPTIONS)
 
   async function start() {
     try {
@@ -29,6 +47,9 @@ export function useRecorder(onError) {
     if (!isRecording) return audio
 
     await recorder.stop()
+    // Kvar i inspelningsläge går senare uppspelning genom den tysta
+    // öronsnäckan på iOS - växla tillbaka direkt.
+    await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true })
     setIsRecording(false)
     setAudio(recorder.uri)
     return recorder.uri
