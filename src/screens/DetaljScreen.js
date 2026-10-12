@@ -4,6 +4,7 @@ import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
 import { deleteTask, updateTask } from '../store.js'
 import { deleteLocalSound } from '../sounds.js'
 import TimerRing from '../components/TimerRing.js'
+import HoloText from '../components/HoloText.js'
 import { turnDial } from '../dial.js'
 import { isSecondsMode, ringUnits } from '../timerRing.js'
 import { formatDuration } from '../time.js'
@@ -89,7 +90,16 @@ function DetaljScreen({ route, navigation }) {
         <Pressable disabled={isActive} onPress={() => setEditingTime((shown) => !shown)}>
           <Row label="Tid" value={formatDuration(seconds)} editable={!isActive} />
         </Pressable>
-        <Row label="Klarat" value={`${task.doneCount ?? 0} ggr`} />
+        <View style={styles.row}>
+          <Text style={styles.rowLabel}>Klarat</Text>
+          {task.doneCount > 0 ? (
+            <View style={styles.holo}>
+              <HoloText text={`${task.doneCount} ggr`} seed={task.id} fontSize={15} />
+            </View>
+          ) : (
+            <Text style={styles.rowValue}>0 ggr</Text>
+          )}
+        </View>
         <Row label="Snoozad" value={`${task.snoozeCount} ggr`} />
         {task.lateSeconds > 0 && <Row label="Försenad" value={formatDuration(task.lateSeconds)} late />}
         <Row label="Skapad" value={created} />
@@ -175,6 +185,7 @@ const styles = StyleSheet.create({
   rowValue: { color: colors.text, fontSize: 15, fontWeight: '600' },
   rowEditable: { color: colors.accent },
   rowLate: { color: colors.accentDark },
+  holo: { backgroundColor: colors.text, borderRadius: 10, paddingHorizontal: 6, marginVertical: -3 },
   ring: { alignItems: 'center' },
   rerunBtn: {
     backgroundColor: colors.accent,

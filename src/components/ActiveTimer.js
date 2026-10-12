@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useKeepAwake } from 'expo-keep-awake'
 import TimerRing from './TimerRing.js'
+import HoloText from './HoloText.js'
 import { ClockIcon, TimerIcon } from './icons.js'
 import { localSoundUri } from '../sounds.js'
 import { playNag } from '../nag.js'
@@ -117,6 +118,13 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
         </Text>
       </View>
 
+      {/* Belöningen mitt i tjatet: hur många gånger det redan är klarat */}
+      {task.doneCount > 0 && (
+        <View style={styles.holo}>
+          <HoloText text={`Klarat ${task.doneCount} ggr`} seed={task.id} />
+        </View>
+      )}
+
       {/* Klart går alltid - även för sent. Snooza först när tiden är ute. */}
       <View style={styles.buttons}>
         <Pressable style={[styles.btn, styles.done]} onPress={handleDone}>
@@ -152,6 +160,8 @@ const styles = StyleSheet.create({
   title: { color: colors.muted, fontSize: 15 },
   guardText: { color: colors.accent, fontWeight: '600' },
   buttons: { flexDirection: 'row', gap: 12 },
+  // Mörk etikett så att de ljusa holofärgerna lyser, som ett klistermärke
+  holo: { backgroundColor: colors.text, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 4 },
   btn: { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 28 },
   // Som en gummistämpel: snett, fet kant och lite genomskinlig bakgrund
   stampWrap: { position: 'absolute', top: 36, left: 0, right: 0, alignItems: 'center' },
