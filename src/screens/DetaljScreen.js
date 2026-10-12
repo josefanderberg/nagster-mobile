@@ -185,7 +185,8 @@ const styles = StyleSheet.create({
   rowValue: { color: colors.text, fontSize: 15, fontWeight: '600' },
   rowEditable: { color: colors.accent },
   rowLate: { color: colors.accentDark },
-  holo: { backgroundColor: colors.text, borderRadius: 10, paddingHorizontal: 6, marginVertical: -3 },
+  // Centrerad i raden - annars sträcks rutan ut och texten hamnar högt upp
+  holo: { backgroundColor: colors.text, borderRadius: 10, paddingHorizontal: 6, paddingVertical: 1, alignSelf: 'center', marginVertical: -4 },
   ring: { alignItems: 'center' },
   rerunBtn: {
     backgroundColor: colors.accent,

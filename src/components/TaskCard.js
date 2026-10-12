@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { formatDuration } from '../time.js'
+import HoloText from './HoloText.js'
 import { colors } from '../theme.js'
 
 function TaskCard({ task, isActive = false, onCancel, onPress }) {
@@ -14,11 +15,11 @@ function TaskCard({ task, isActive = false, onCancel, onPress }) {
 
   return (
     <Pressable
-      style={[styles.card, isDone && styles.done, isActive && styles.active]}
+      style={[styles.card, isActive && styles.active]}
       onPress={onPress}
     >
       <View style={styles.top}>
-        <Text style={styles.title} numberOfLines={1}>
+        <Text style={[styles.title, isDone && styles.doneText]} numberOfLines={1}>
           {task.title}
         </Text>
 
@@ -36,7 +37,19 @@ function TaskCard({ task, isActive = false, onCancel, onPress }) {
         </View>
       </View>
 
-      {notes !== '' && <Text style={styles.snooze}>{notes.charAt(0).toUpperCase() + notes.slice(1)}</Text>}
+      {(task.doneCount > 0 || notes !== '') && (
+        <View style={styles.bottom}>
+          {/* Klarat-räknaren glimmar även i listan - som på timern, fast utan etikett */}
+          {task.doneCount > 0 && (
+            <HoloText text={`Klarat ${task.doneCount} ggr`} seed={task.id} fontSize={14} outline />
+          )}
+          {notes !== '' && (
+            <Text style={[styles.snooze, isDone && styles.doneText]}>
+              {notes.charAt(0).toUpperCase() + notes.slice(1)}
+            </Text>
+          )}
+        </View>
+      )}
     </Pressable>
   )
 }
@@ -50,7 +63,9 @@ const styles = StyleSheet.create({
     padding: 14,
     gap: 6,
   },
-  done: { opacity: 0.55 },
+  // Klara tjat tonas ner - men inte holo-räknaren, den ska lysa
+  doneText: { opacity: 0.55 },
+  bottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   active: { borderColor: colors.ok },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '600' },
