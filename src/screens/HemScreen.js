@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Alert, FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Notifications from 'expo-notifications'
-import { createTask, deleteTask, getSettings, getStreak, getTasks, recordCompletion, restartTask, saveRecording, saveSetting, updateTask } from '../store.js'
+import { breakStreak, createTask, deleteTask, getSettings, getStreak, getTasks, recordCompletion, restartTask, saveRecording, saveSetting, updateTask } from '../store.js'
 import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
 import { deleteLocalSound, localSoundUri, saveLocalSound, soundName } from '../sounds.js'
 import { loadTimers, saveTimers } from '../activeStore.js'
@@ -44,6 +44,9 @@ function HemScreen({ navigation, route }) {
   const [streak, setStreak] = useState(() => getStreak())
   const [gotchaOn, setGotchaOn] = useState(() => getSettings().gotchaCamera === true)
   const [gotcha, setGotcha] = useState(null) // { kind, taskId } medan kameran tar en bild
+  // Tjatet som just ändrats blinkar till i listan. key gör att samma tjat kan blinka igen.
+  const [flash, setFlash] = useState({ id: null, key: 0 })
+  const flashTask = (id) => setFlash((previous) => ({ id, key: previous.key + 1 }))
   const current = firstToEnd(timers)
   // Vakten bor här och inte i formuläret, så att den lever vidare när ett tjat startas
   const guard = useMotionGuard(current ? localSoundUri(current.task.id) : null, current?.endsAt ?? null)
@@ -110,6 +113,7 @@ function HemScreen({ navigation, route }) {
 
     updateTimers((previous) => [...previous, { task, endsAt: ends, deadline: ends }].slice(-MAX_TIMERS))
     await load()
+    flashTask(task.id)
   }
 
   async function handleAdd(title, seconds, recording) {
@@ -170,6 +174,7 @@ function HemScreen({ navigation, route }) {
       await scheduleAlarm(snoozed, ends, localSoundUri(snoozed.id) ? soundName(snoozed.id) : null)
       await updateTask(snoozed.id, snoozed)
       await load()
+      flashTask(snoozed.id)
     } catch (err) {
       setError(err.message)
     }
@@ -197,6 +202,7 @@ function HemScreen({ navigation, route }) {
     try {
       await updateTask(finished.id, finished)
       await load()
+      flashTask(finished.id)
     } catch (err) {
       setError(err.message)
     }
@@ -238,6 +244,15 @@ function HemScreen({ navigation, route }) {
       )
     }
   }
+
+  // Blir ett tjat försenat, mer än minuten man får på sig, är streaken borta
+  // direkt - den väntar inte på att man trycker Klart
+  useEffect(() => {
+    if (streak === 0 || timers.length === 0) return
+    const lateAt = Math.min(...timers.map((timer) => timer.deadline)) + GRACE_SECONDS * 1000
+    const timeout = setTimeout(() => setStreak(breakStreak()), Math.max(0, lateAt - Date.now()))
+    return () => clearTimeout(timeout)
+  }, [timers, streak])
 
   // Streaken uppe till vänster, kameran uppe till höger
   useLayoutEffect(() => {
@@ -324,6 +339,7 @@ function HemScreen({ navigation, route }) {
                   previewNag(localSoundUri(item.id) ?? item.filePath, item.title)
                 }}
                 onPress={() => navigation.navigate('Detalj', { task: item, isActive, canRerun: canRun })}
+                flashKey={flash.id === item.id ? flash.key : 0}
               />
             </SwipeRow>
           )

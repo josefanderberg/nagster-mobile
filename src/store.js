@@ -127,6 +127,11 @@ export function getStreak() {
   }
 }
 
+// Ett tjat som blir för sent bryter streaken direkt, innan man tryckt Klart
+export function breakStreak() {
+  return recordCompletion(false)
+}
+
 // Klart i tid räknar upp streaken, för sent nollställer den
 export function recordCompletion(onTime) {
   const next = onTime ? getStreak() + 1 : 0
