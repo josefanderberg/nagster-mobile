@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Platform } from 'react-native'
 import { IOSOutputFormat, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio'
+import { allowHapticsWhileRecording } from '../modules/tjat-haptik/index.js'
 
 // iOS spelar bara upp notisljud i okomprimerade format, därför wav där.
 // Android kan inte spela in wav och behåller m4a. Mono räcker gott för röst
@@ -32,6 +33,7 @@ export function useRecorder(onError) {
       if (!granted) return onError('Tjat behöver mikrofonen för att kunna tjata med din röst.')
 
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+      allowHapticsWhileRecording() // annars känns inte ringen medan man pratar in
       await recorder.prepareToRecordAsync()
       recorder.record()
       setIsRecording(true)

@@ -3,6 +3,7 @@ import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
 import { setAudioModeAsync } from 'expo-audio'
 import { playNag } from './nag.js'
+import { startBuzz, stopBuzz } from '../modules/tjat-haptik/index.js'
 
 export const DISARM_HOLD_MS = 3000
 
@@ -81,11 +82,12 @@ export function useMotionGuard(alarmSoundUri) {
     return () => subscription.remove()
   }, [phase])
 
-  // Systemvibrationen är den kraftigaste en app får använda - och finns en
-  // inspelning skäller rösten med på maxvolym, även med ljudlös-knappen på
+  // Ett ihållande surr utan pauser (Core Haptics), eller systemets vibrations-
+  // loop där det inte finns. Finns en inspelning skäller rösten med på
+  // maxvolym, även med ljudlös-knappen på.
   useEffect(() => {
     if (phase !== 'alarm') return
-    Vibration.vibrate(ALARM_PATTERN, true)
+    if (!startBuzz()) Vibration.vibrate(ALARM_PATTERN, true)
 
     let stopVoice = null
     let cancelled = false
@@ -101,6 +103,7 @@ export function useMotionGuard(alarmSoundUri) {
 
     return () => {
       cancelled = true
+      stopBuzz()
       Vibration.cancel()
       stopVoice?.()
     }
