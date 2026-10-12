@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { formatDuration } from '../time.js'
-import { PlayIcon } from './icons.js'
+import { FastForwardIcon } from './icons.js'
 import { colors } from '../theme.js'
 
 // onRun startar tjatet direkt från listan - eller i en inre ring om ett
@@ -31,6 +31,11 @@ function TaskCard({ task, isActive = false, onCancel, onRun = null, onPress }) {
               <Text style={styles.cancelText}>Avbryt</Text>
             </Pressable>
           )}
+          {onRun && (
+            <Pressable style={styles.run} onPress={onRun} hitSlop={8} accessibilityLabel="Kör tjatet igen">
+              <FastForwardIcon color={colors.muted} />
+            </Pressable>
+          )}
           <View style={[styles.badge, isDone && styles.badgeDone]}>
             <Text style={[styles.badgeText, isDone && styles.badgeDoneText]}>
               {isDone ? 'Klart' : formatDuration(task.durationSeconds)}
@@ -39,17 +44,9 @@ function TaskCard({ task, isActive = false, onCancel, onRun = null, onPress }) {
         </View>
       </View>
 
-      {(onRun || task.doneCount > 0 || notes !== '') && (
+      {(task.doneCount > 0 || notes !== '') && (
         <View style={styles.bottom}>
-          {/* Klarat-räknaren är också knappen som kör tjatet igen */}
-          {onRun ? (
-            <Pressable style={styles.run} onPress={onRun} hitSlop={6}>
-              <PlayIcon color={colors.accent} />
-              <Text style={styles.runText}>{task.doneCount > 0 ? `Klarat ${task.doneCount} ggr` : 'Kör'}</Text>
-            </Pressable>
-          ) : (
-            task.doneCount > 0 && <Text style={styles.count}>Klarat {task.doneCount} ggr</Text>
-          )}
+          {task.doneCount > 0 && <Text style={styles.count}>Klarat {task.doneCount} ggr</Text>}
           {notes !== '' && (
             <Text style={[styles.snooze, isDone && styles.doneText]}>
               {notes.charAt(0).toUpperCase() + notes.slice(1)}
@@ -73,17 +70,17 @@ const styles = StyleSheet.create({
   // Klara tjat tonas ner - men inte holo-räknaren, den ska lysa
   doneText: { opacity: 0.55 },
   bottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  // Grå och diskret, som spola fram-knappen på en VHS
   run: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
+    width: 30,
+    height: 24,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: 99,
-    paddingVertical: 3,
-    paddingHorizontal: 10,
+    borderColor: colors.border,
+    backgroundColor: colors.bg,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  runText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
   count: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   active: { borderColor: colors.ok },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },

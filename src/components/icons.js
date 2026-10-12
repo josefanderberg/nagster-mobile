@@ -95,11 +95,12 @@ export function CameraIcon({ color, off = false }) {
   )
 }
 
-// Liten fylld spela-triangel till Kör-knappen i listan
-export function PlayIcon({ color }) {
+// Spola fram, som på en VHS - Kör-knappen i listan
+export function FastForwardIcon({ color }) {
   return (
-    <Svg width={10} height={12} viewBox="0 0 10 12">
-      <Path d="M1 1.2v9.6a.8.8 0 0 0 1.2.7l7.4-4.8a.8.8 0 0 0 0-1.4L2.2.5A.8.8 0 0 0 1 1.2Z" fill={color} />
+    <Svg width={16} height={12} viewBox="0 0 16 12">
+      <Path d="M1 1.4v9.2a.7.7 0 0 0 1.1.6L7.6 6.6a.7.7 0 0 0 0-1.2L2.1.8A.7.7 0 0 0 1 1.4Z" fill={color} />
+      <Path d="M8 1.4v9.2a.7.7 0 0 0 1.1.6l5.5-4.6a.7.7 0 0 0 0-1.2L9.1.8A.7.7 0 0 0 8 1.4Z" fill={color} />
     </Svg>
   )
 }
