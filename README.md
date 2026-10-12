@@ -38,6 +38,7 @@ För TestFlight: `eas build --profile production --platform ios --auto-submit`.
 
 - **Hem:** dra i ringen för att välja tid, spela in ett tjat med mikrofonen och tryck Starta. Listan under visar alla tjat.
 - **Detalj:** tryck på ett tjat i listan för att se det och lyssna på inspelningen. Tryck på tiden för att ändra den, och på **Kör igen** för att starta tjatet en gång till med samma röst.
+- **Kameran uppe till höger i rubriken** slår på ertappad-kameran: frontkameran tar en bild med stämpel när du snoozar eller klarar ett tjat. Bilderna syns som bevis i detaljvyn. **Lågan uppe till vänster** är din streak, tjat i rad klarade i tid.
 - **Låset uppe till höger** slår på rörelsevakten. Lägg telefonen på bordet, skärmen blir svart och plockar du upp den blir den röd och vibrerar. Håll inne i tre sekunder för att stänga av.
 
 ## Tekniska val

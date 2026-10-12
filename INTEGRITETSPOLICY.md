@@ -26,6 +26,7 @@ Allt sparas bara i appens egen lagring på telefonen. Det följer med i telefone
 - **Mikrofon**: används bara när du trycker på inspelningsknappen.
 - **Notiser**: för att påminna dig när tiden är ute.
 - **Rörelsesensorer**: används bara när rörelsevakten är på. Mätvärdena sparas inte.
+- **Kamera**: bara om du slår på ertappad-kameran. Då tar frontkameran en bild när du snoozar eller klarar ett tjat. Bilderna sparas bara i telefonen och tas bort tillsammans med tjatet.
 
 ## Ta bort din data
 
@@ -49,7 +50,7 @@ Tjat is an app that reminds you with your own voice. It is developed by Josef An
 
 **What the app does not do:** no accounts, no name, email or phone number, no tracking, no ads, no third-party analytics, no data leaves the phone.
 
-**Permissions:** microphone (only while recording), notifications (to remind you), motion sensors (only while the motion guard is on, readings are not stored).
+**Permissions:** microphone (only while recording), notifications (to remind you), motion sensors (only while the motion guard is on, readings are not stored), camera (only if you turn on the gotcha camera; it takes a front camera photo when you snooze or finish, and the photos stay on the phone).
 
 **Deleting data:** open a task and tap Ta bort tjatet (Delete). Deleting the app removes all data.
 
