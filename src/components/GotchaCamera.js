@@ -84,7 +84,7 @@ function GotchaCamera({ shot, onSaved, onClose }) {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#000' },
-  stampWrap: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
+  stampWrap: { position: 'absolute', top: 0, right: 0, bottom: 0, left: 0, alignItems: 'center', justifyContent: 'center' },
   // Samma gummistämpel som FÖRSENAD, fast större
   stamp: {
     borderWidth: 5,
