@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Notifications from 'expo-notifications'
 import { createTask, getSettings, getStreak, getTasks, recordCompletion, restartTask, saveRecording, saveSetting, updateTask } from '../store.js'
@@ -194,6 +194,12 @@ function HemScreen({ navigation, route }) {
     }
     saveSetting('gotchaCamera', next)
     setGotchaOn(next)
+    if (next) {
+      Alert.alert(
+        'Ertappad-kameran är på',
+        'Frontkameran tar en bild när du snoozar eller klarar ett tjat. Alla bilder sparas bara i din telefon och skickas aldrig någonstans.'
+      )
+    }
   }
 
   // Streaken uppe till vänster, kameran uppe till höger

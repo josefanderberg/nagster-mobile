@@ -139,7 +139,9 @@ function DetaljScreen({ route, navigation }) {
       {/* Ertappad-bilderna, nyast först */}
       {!editingTime && task.photos?.length > 0 && (
         <View style={styles.proof}>
-          <Text style={styles.proofTitle}>Bevis</Text>
+          <Text style={styles.proofTitle}>
+            Bevis <Text style={styles.proofLocal}>· bara i din telefon</Text>
+          </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.proofRow}>
             {[...task.photos].reverse().map((photo) => (
               <View key={photo.name}>
@@ -233,6 +235,7 @@ const styles = StyleSheet.create({
   deleteText: { color: colors.accentDark, fontWeight: '600', fontSize: 16 },
   proof: { gap: 8 },
   proofTitle: { color: colors.muted, fontSize: 15 },
+  proofLocal: { fontSize: 13 },
   proofRow: { gap: 10 },
   photo: { width: 88, height: 88, borderRadius: 12, backgroundColor: colors.border },
   photoLabel: { marginTop: 4, textAlign: 'center', fontSize: 12, fontWeight: '700', color: colors.ok },
