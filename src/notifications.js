@@ -41,10 +41,15 @@ export async function ensureNotificationPermission() {
   return asked.granted
 }
 
+// Notisernas id:n per tjat, så att två tjat kan ha var sin larmserie
+function alarmIds(taskId) {
+  return [0, ...REPEATS].map((_, index) => `tjat-${taskId}-${index}`)
+}
+
 // En larmserie: rösten vid endsAt plus tjatiga påminnelser efteråt.
 // soundFile är filnamnet i Library/Sounds, eller null för systemljudet.
 export async function scheduleAlarm(task, endsAt, soundFile) {
-  await cancelAlarm() // aldrig två serier samtidigt - bara ett tjat åt gången
+  await cancelAlarm(task.id) // tjatets gamla serie ersätts, andra tjat får vara
 
   const content = {
     title: 'Tjat!',
@@ -59,6 +64,7 @@ export async function scheduleAlarm(task, endsAt, soundFile) {
     const date = new Date(endsAt + offset * 1000)
     if (date <= new Date()) continue // passerade tider går inte att boka
     await Notifications.scheduleNotificationAsync({
+      identifier: alarmIds(task.id)[index],
       content: index === 0 ? content : { ...content, title: 'Tjat! Fortfarande inte klar?' },
       trigger: {
         type: Notifications.SchedulableTriggerInputTypes.DATE,
@@ -69,11 +75,14 @@ export async function scheduleAlarm(task, endsAt, soundFile) {
   }
 }
 
-// Appen har bara en larmserie, så allt kan avbokas i klump.
-// Redan visade notiser plockas också bort ur notiscentret.
-export function cancelAlarm() {
-  return Promise.all([
-    Notifications.cancelAllScheduledNotificationsAsync(),
-    Notifications.dismissAllNotificationsAsync(),
-  ])
+// Avbokar ett tjats larmserie. Redan visade notiser för det plockas också
+// bort ur notiscentret.
+export async function cancelAlarm(taskId) {
+  await Promise.all(alarmIds(taskId).map((id) => Notifications.cancelScheduledNotificationAsync(id)))
+  const shown = await Notifications.getPresentedNotificationsAsync()
+  await Promise.all(
+    shown
+      .filter((notification) => notification.request.content.data?.taskId === taskId)
+      .map((notification) => Notifications.dismissNotificationAsync(notification.request.identifier))
+  )
 }

@@ -1,9 +1,11 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { formatDuration } from '../time.js'
-import HoloText from './HoloText.js'
+import { PlayIcon } from './icons.js'
 import { colors } from '../theme.js'
 
-function TaskCard({ task, isActive = false, onCancel, onPress }) {
+// onRun startar tjatet direkt från listan - eller i en inre ring om ett
+// annat redan går. null när det inte går, t.ex. när två redan är igång.
+function TaskCard({ task, isActive = false, onCancel, onRun = null, onPress }) {
   const isDone = task.status === 'done'
   // T.ex. "Försenad 4m · snoozad 2 ggr" - äldre tjat saknar lateSeconds
   const notes = [
@@ -37,11 +39,16 @@ function TaskCard({ task, isActive = false, onCancel, onPress }) {
         </View>
       </View>
 
-      {(task.doneCount > 0 || notes !== '') && (
+      {(onRun || task.doneCount > 0 || notes !== '') && (
         <View style={styles.bottom}>
-          {/* Klarat-räknaren glimmar även i listan - som på timern, fast utan etikett */}
-          {task.doneCount > 0 && (
-            <HoloText text={`Klarat ${task.doneCount} ggr`} seed={task.id} fontSize={14} outline />
+          {/* Klarat-räknaren är också knappen som kör tjatet igen */}
+          {onRun ? (
+            <Pressable style={styles.run} onPress={onRun} hitSlop={6}>
+              <PlayIcon color={colors.accent} />
+              <Text style={styles.runText}>{task.doneCount > 0 ? `Klarat ${task.doneCount} ggr` : 'Kör'}</Text>
+            </Pressable>
+          ) : (
+            task.doneCount > 0 && <Text style={styles.count}>Klarat {task.doneCount} ggr</Text>
           )}
           {notes !== '' && (
             <Text style={[styles.snooze, isDone && styles.doneText]}>
@@ -66,6 +73,18 @@ const styles = StyleSheet.create({
   // Klara tjat tonas ner - men inte holo-räknaren, den ska lysa
   doneText: { opacity: 0.55 },
   bottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  run: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 99,
+    paddingVertical: 3,
+    paddingHorizontal: 10,
+  },
+  runText: { color: colors.accent, fontSize: 13, fontWeight: '600' },
+  count: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   active: { borderColor: colors.ok },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '600' },

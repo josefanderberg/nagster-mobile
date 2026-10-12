@@ -7,35 +7,63 @@ import GuardButton from './GuardButton.js'
 import { ClockIcon, TimerIcon } from './icons.js'
 import { localSoundUri } from '../sounds.js'
 import { playNag, speakNag } from '../nag.js'
-import { isSecondsMode } from '../timerRing.js'
+import { isSecondsMode, SIZE } from '../timerRing.js'
 import { clockTime, formatCountdown } from '../time.js'
 import { colors } from '../theme.js'
 
-// Tjatet som är igång: ringen räknar ner och går inte att dra i.
-// Ett varv är en minut, så sekundvisaren syns tydligt. När tiden är ute
-// räknar ringen i stället uppåt i rött och tjatet stämplas som försenat.
-function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
+const INNER_SCALE = 0.64 // den inre ringen får plats innanför den yttre
+const INNER_GREEN = '#3fb6a8' // lite blågrönare, så att ringarna går att skilja åt
+
+// Var en timer står just nu. Tiden härleds ur en fast sluttid i stället för
+// att räknas ner, så att den stämmer även efter en stund i bakgrunden.
+function timerState(timer, now) {
+  const secondsLeft = Math.max(0, Math.ceil((timer.endsAt - now) / 1000))
+  return {
+    secondsLeft,
+    expired: secondsLeft === 0,
+    // Förseningen räknas från första sluttiden - en snooze ger mer tid men
+    // tar inte bort stämpeln
+    late: now >= timer.deadline,
+    lateSeconds: Math.max(0, Math.floor((now - timer.deadline) / 1000)),
+  }
+}
+
+// En ring per tjat: grön nedräkning, eller röd uppräkning när tiden är ute
+function Ring({ timer, state, label, green }) {
+  return state.expired ? (
+    <TimerRing units={state.lateSeconds} label={label} color={colors.accentDark} interactive={false} />
+  ) : (
+    <TimerRing
+      units={state.secondsLeft}
+      label={label}
+      color={green}
+      mirrored={isSecondsMode(timer.task.durationSeconds)}
+      interactive={false}
+    />
+  )
+}
+
+// Tjaten som är igång: ringarna räknar ner och går inte att dra i. Ett varv
+// är en minut, så sekundvisaren syns tydligt. Ett andra tjat syns som en
+// inre ring. Klart och Snooza gäller det som tar slut först (current).
+function ActiveTimer({ timers, current, guard, onDone, onSnooze }) {
   useKeepAwake() // skärmen får inte somna - då slutar accelerometern mäta
 
-  // Tiden kvar härleds ur en fast sluttid i stället för att räknas ner,
-  // så att den stämmer även efter en stund i bakgrunden.
   const [now, setNow] = useState(() => Date.now())
   const [showClock, setShowClock] = useState(false)
   const stopNag = useRef(null)
 
-  const secondsLeft = Math.max(0, Math.ceil((endsAt - now) / 1000))
-  const expired = secondsLeft === 0
-  // Förseningen räknas från första sluttiden - en snooze ger mer tid men
-  // tar inte bort stämpeln
-  const late = deadline !== null && now >= deadline
-  const lateSeconds = Math.max(0, Math.floor((now - deadline) / 1000))
+  const task = current.task
+  const state = timerState(current, now)
+  const [outer, inner] = timers
+  const other = timers.find((timer) => timer !== current) ?? null
 
   useEffect(() => {
     const tick = () => setNow(Date.now())
     const interval = setInterval(tick, 250)
     // Tillbaka från bakgrunden: synka direkt i stället för att vänta på ticket
-    const subscription = AppState.addEventListener('change', (state) => {
-      if (state === 'active') tick()
+    const subscription = AppState.addEventListener('change', (appState) => {
+      if (appState === 'active') tick()
     })
     return () => {
       clearInterval(interval)
@@ -44,14 +72,11 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
   }, [])
 
   // Kopian i Library/Sounds finns bara på iOS - annars spelas den sparade inspelningen
-  const source = useMemo(
-    () => localSoundUri(task.id) ?? task.filePath,
-    [task.id, task.filePath]
-  )
+  const source = useMemo(() => localSoundUri(task.id) ?? task.filePath, [task.id, task.filePath])
 
   // När tiden går ut börjar rösten tjata
   useEffect(() => {
-    if (!expired) return
+    if (!state.expired) return
     let cancelled = false
 
     // Ljudfilen om den finns, annars läser telefonens röst upp titeln
@@ -65,7 +90,7 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
       cancelled = true
       stopNag.current?.()
     }
-  }, [expired, source, task.title, task.snoozeCount])
+  }, [state.expired, source, task.title, task.snoozeCount])
 
   // Själva snooze-tiden räknas ut i HemScreen, som också bokar om notisen
   function handleSnooze() {
@@ -78,30 +103,33 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
     onDone()
   }
 
+  // Texten i mitten gäller alltid tjatet som tar slut först
+  const centerLabel = state.expired
+    ? `+${formatCountdown(state.lateSeconds)}`
+    : showClock
+      ? clockTime(state.secondsLeft)
+      : formatCountdown(state.secondsLeft)
+
   const arming = guard.phase === 'arming'
-  const status = arming ? `Lägg mobilen på bordet … ${guard.armLeft}` : task.title
+  const otherState = other && timerState(other, now)
 
   return (
     <View style={styles.wrapper}>
       <View>
-        {expired ? (
-          <TimerRing
-            units={lateSeconds}
-            label={`+${formatCountdown(lateSeconds)}`}
-            color={colors.accentDark}
-            interactive={false}
-          />
-        ) : (
-          <TimerRing
-            units={secondsLeft}
-            label={showClock ? clockTime(secondsLeft) : formatCountdown(secondsLeft)}
-            color={colors.ok}
-            mirrored={isSecondsMode(task.durationSeconds)}
-            interactive={false}
-          />
+        <Ring timer={outer} state={timerState(outer, now)} label={inner ? '' : centerLabel} green={colors.ok} />
+
+        {inner && (
+          <>
+            <View pointerEvents="none" style={styles.inner}>
+              <Ring timer={inner} state={timerState(inner, now)} label="" green={INNER_GREEN} />
+            </View>
+            <View pointerEvents="none" style={styles.centerLabel}>
+              <Text style={styles.centerText}>{centerLabel}</Text>
+            </View>
+          </>
         )}
 
-        {late && (
+        {state.late && (
           <View pointerEvents="none" style={styles.stampWrap}>
             <View style={styles.stamp}>
               <Text style={styles.stampText}>FÖRSENAD</Text>
@@ -119,9 +147,23 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
 
       {/* Samma höjd som formulärets knapprad, annars hoppar ringen */}
       <View style={styles.titleRow}>
-        <Text style={[styles.title, arming && styles.guardText]} numberOfLines={1}>
-          {status}
-        </Text>
+        {arming ? (
+          <Text style={[styles.title, styles.guardText]} numberOfLines={1}>
+            Lägg mobilen på bordet … {guard.armLeft}
+          </Text>
+        ) : (
+          <>
+            <Text style={[styles.title, other && styles.titleFirst]} numberOfLines={1}>
+              {task.title}
+            </Text>
+            {other && (
+              <Text style={styles.titleNext} numberOfLines={1}>
+                sedan: {other.task.title} ·{' '}
+                {otherState.expired ? `+${formatCountdown(otherState.lateSeconds)}` : formatCountdown(otherState.secondsLeft)}
+              </Text>
+            )}
+          </>
+        )}
       </View>
 
       {/* Belöningen mitt i tjatet: hur många gånger det redan är klarat */}
@@ -136,13 +178,12 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
         <Pressable style={[styles.btn, styles.done]} onPress={handleDone}>
           <Text style={styles.btnText}>Klart</Text>
         </Pressable>
-        {expired && (
+        {state.expired && (
           <Pressable style={[styles.btn, styles.snooze]} onPress={handleSnooze}>
             <Text style={styles.btnText}>Snooza</Text>
           </Pressable>
         )}
       </View>
-
     </View>
   )
 }
@@ -162,8 +203,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  titleRow: { height: 46, justifyContent: 'center' },
+  // Den inre ringen ritas i full storlek och krymps runt mitten
+  inner: { position: 'absolute', top: 0, left: 0, width: SIZE, height: SIZE, transform: [{ scale: INNER_SCALE }] },
+  centerLabel: { position: 'absolute', top: 0, left: 0, width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' },
+  centerText: { fontSize: 30, fontWeight: '700', color: colors.text },
+  titleRow: { height: 46, justifyContent: 'center', alignItems: 'center' },
   title: { color: colors.muted, fontSize: 15 },
+  titleFirst: { color: colors.text, fontWeight: '600' },
+  titleNext: { color: colors.muted, fontSize: 13, marginTop: 2 },
   guardText: { color: colors.accent, fontWeight: '600' },
   buttons: { flexDirection: 'row', gap: 12 },
   // Mörk etikett så att de ljusa holofärgerna lyser, som ett klistermärke

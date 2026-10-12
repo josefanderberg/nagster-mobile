@@ -94,3 +94,12 @@ export function CameraIcon({ color, off = false }) {
     </Icon>
   )
 }
+
+// Liten fylld spela-triangel till Kör-knappen i listan
+export function PlayIcon({ color }) {
+  return (
+    <Svg width={10} height={12} viewBox="0 0 10 12">
+      <Path d="M1 1.2v9.6a.8.8 0 0 0 1.2.7l7.4-4.8a.8.8 0 0 0 0-1.4L2.2.5A.8.8 0 0 0 1 1.2Z" fill={color} />
+    </Svg>
+  )
+}
