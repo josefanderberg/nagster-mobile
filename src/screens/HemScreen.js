@@ -14,7 +14,7 @@ import GuardScreen from '../components/GuardScreen.js'
 import StreakBadge from '../components/StreakBadge.js'
 import GotchaCamera from '../components/GotchaCamera.js'
 import { CameraIcon } from '../components/icons.js'
-import { requestCameraPermissionsAsync } from 'expo-camera'
+import { Camera } from 'expo-camera'
 import { useMotionGuard } from '../useMotionGuard.js'
 import { isSecondsMode } from '../timerRing.js'
 import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
@@ -202,8 +202,9 @@ function HemScreen({ navigation, route }) {
   async function toggleGotcha() {
     const next = !gotchaOn
     if (next) {
-      const { granted } = await requestCameraPermissionsAsync()
-      if (!granted) return setError('Tjat behöver kameran för att kunna ta dig på bar gärning.')
+      // Frågan finns bara på Camera-objektet - den exporteras inte för sig
+      const { granted } = await Camera.requestCameraPermissionsAsync().catch(() => ({ granted: false }))
+      if (!granted) return setError('Tjat behöver kameran för att kunna ta dig på bar gärning. Slå på den under Inställningar > Tjat.')
     }
     saveSetting('gotchaCamera', next)
     setGotchaOn(next)
