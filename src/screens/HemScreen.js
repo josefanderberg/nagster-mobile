@@ -14,6 +14,8 @@ import GuardScreen from '../components/GuardScreen.js'
 import { useMotionGuard } from '../useMotionGuard.js'
 import { isSecondsMode } from '../timerRing.js'
 import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
+import { File, Paths } from 'expo-file-system'
+import { speakToFile } from '../../modules/tjat-native/index.js'
 import { colors } from '../theme.js'
 
 const SNOOZE_MINUTES = 10
@@ -96,10 +98,14 @@ function HemScreen({ navigation, route }) {
     try {
       // Uppgiften skapas först, sedan kopplas inspelningen till den
       let task = await createTask({ title, durationSeconds: seconds })
-      if (recording) task = await saveRecording(task.id, recording)
 
-      // Lokal kopia i Library/Sounds gör att notisen tjatar med din röst
-      await startTimer(task, seconds, recording ? saveLocalSound(task.id, recording) : null)
+      // Ett skrivet tjat utan inspelning läses in med telefonens röst, och
+      // filen används sedan precis som en inspelning
+      const voice = recording ?? (await speakToFile(title, new File(Paths.cache, `tal-${task.id}.wav`).uri))
+      if (voice) task = await saveRecording(task.id, voice)
+
+      // Lokal kopia i Library/Sounds gör att notisen tjatar med rösten
+      await startTimer(task, seconds, voice ? saveLocalSound(task.id, voice) : null)
     } catch (err) {
       setError(err.message)
     }

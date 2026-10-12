@@ -5,7 +5,7 @@ import TimerRing from './TimerRing.js'
 import HoloText from './HoloText.js'
 import { ClockIcon, TimerIcon } from './icons.js'
 import { localSoundUri } from '../sounds.js'
-import { playNag } from '../nag.js'
+import { playNag, speakNag } from '../nag.js'
 import { isSecondsMode } from '../timerRing.js'
 import { clockTime, formatCountdown } from '../time.js'
 import { colors } from '../theme.js'
@@ -50,10 +50,12 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
 
   // När tiden går ut börjar rösten tjata
   useEffect(() => {
-    if (!expired || !source) return
+    if (!expired) return
     let cancelled = false
 
-    playNag(source, task.snoozeCount).then((stop) => {
+    // Ljudfilen om den finns, annars läser telefonens röst upp titeln
+    const nag = source ? playNag(source, task.snoozeCount) : speakNag(task.title, task.snoozeCount)
+    nag.then((stop) => {
       if (cancelled) stop()
       else stopNag.current = stop
     })
@@ -62,7 +64,7 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
       cancelled = true
       stopNag.current?.()
     }
-  }, [expired, source, task.snoozeCount])
+  }, [expired, source, task.title, task.snoozeCount])
 
   // Själva snooze-tiden räknas ut i HemScreen, som också bokar om notisen
   function handleSnooze() {

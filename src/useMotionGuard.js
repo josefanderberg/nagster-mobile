@@ -3,7 +3,7 @@ import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
 import { setAudioModeAsync } from 'expo-audio'
 import { playNag } from './nag.js'
-import { startBuzz, stopBuzz } from '../modules/tjat-haptik/index.js'
+import { startBuzz, stopBuzz } from '../modules/tjat-native/index.js'
 
 export const DISARM_HOLD_MS = 3000
 

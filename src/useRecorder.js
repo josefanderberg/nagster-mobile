@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Platform } from 'react-native'
 import { IOSOutputFormat, RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioRecorder } from 'expo-audio'
-import { allowHapticsWhileRecording } from '../modules/tjat-haptik/index.js'
+import { allowHapticsWhileRecording } from '../modules/tjat-native/index.js'
 
 // iOS spelar bara upp notisljud i okomprimerade format, därför wav där.
 // Android kan inte spela in wav och behåller m4a. Mono räcker gott för röst

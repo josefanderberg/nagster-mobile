@@ -1,4 +1,5 @@
 import { createAudioPlayer } from 'expo-audio'
+import * as Speech from 'expo-speech'
 
 const MAX_MILLISECONDS = 30_000 // tjatet ger sig efter en halv minut
 
@@ -22,6 +23,31 @@ export async function playNag(source, snoozeCount) {
     clearTimeout(timeout)
     player.pause()
     player.remove()
+  }
+
+  return stop
+}
+
+// Utan ljudfil (Android, eller om iPhonens röstfil inte gick att skapa) läser
+// telefonens röst upp tjatet direkt - på telefonens språk, och snabbare och
+// ljusare för varje snooze, precis som en inspelning.
+export async function speakNag(text, snoozeCount) {
+  let stopped = false
+  const options = {
+    rate: Math.min(1 + snoozeCount * 0.25, 2),
+    pitch: Math.min(1 + snoozeCount * 0.2, 2),
+    onDone: () => {
+      if (!stopped) Speech.speak(text, options)
+    },
+  }
+  Speech.speak(text, options)
+
+  const timeout = setTimeout(stop, MAX_MILLISECONDS)
+
+  function stop() {
+    stopped = true
+    clearTimeout(timeout)
+    Speech.stop()
   }
 
   return stop
