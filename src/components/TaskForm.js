@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
-import * as Haptics from 'expo-haptics'
 import TimerRing from './TimerRing.js'
 import Recorder from './Recorder.js'
 import { useRecorder } from '../useRecorder.js'
-import { isSecondsMode, MIN_SECONDS, ringUnits, secondsFromPointer } from '../timerRing.js'
+import { isSecondsMode, ringUnits } from '../timerRing.js'
+import { turnDial } from '../dial.js'
 import { clockTime, formatDuration } from '../time.js'
 import { colors } from '../theme.js'
 import { ClockIcon, PencilIcon, TimerIcon } from './icons.js'
@@ -27,27 +27,8 @@ function TaskForm({ onAdd, onError, guard }) {
   // Rörelsevakten räknas inte: den är en egen funktion som inte sparar något.
   const canStart = Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null
 
-  // Ett klick för varje steg man snurrar, som på en riktig ratt. Telefonen
-  // rapporterar fingret ungefär 60 gånger i sekunden, så snurrar man snabbt
-  // hinner ringen flytta flera steg mellan varje rapport - då blir klicket
-  // kraftigare i stället, så att fart känns som mer vibration och inte mindre.
   function handlePointer(x, y, rect) {
-    const next = Math.max(MIN_SECONDS, secondsFromPointer(seconds, x, y, rect))
-    if (next === seconds) return
-
-    const stepSize = secondsMode ? 1 : 60
-    const steps = Math.abs(next - seconds) / stepSize
-
-    if (isSecondsMode(next) !== secondsMode) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy) // bytet vid toppen
-    } else if (steps >= 4) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    } else if (steps >= 2) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    } else {
-      Haptics.selectionAsync()
-    }
-    setSeconds(next)
+    setSeconds(turnDial(seconds, x, y, rect))
   }
 
   async function handleStart() {
