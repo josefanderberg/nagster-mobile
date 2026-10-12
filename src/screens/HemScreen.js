@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Notifications from 'expo-notifications'
-import { createTask, getStreak, getTasks, recordCompletion, restartTask, saveRecording, updateTask } from '../store.js'
+import { createTask, getSettings, getStreak, getTasks, recordCompletion, restartTask, saveRecording, saveSetting, updateTask } from '../store.js'
 import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
 import { localSoundUri, saveLocalSound, soundName } from '../sounds.js'
 import { clearActive, loadActive, saveActive } from '../activeStore.js'
@@ -12,6 +12,9 @@ import TaskCard from '../components/TaskCard.js'
 import ErrorBanner from '../components/ErrorBanner.js'
 import GuardScreen from '../components/GuardScreen.js'
 import StreakBadge from '../components/StreakBadge.js'
+import GotchaCamera from '../components/GotchaCamera.js'
+import { CameraIcon } from '../components/icons.js'
+import { requestCameraPermissionsAsync } from 'expo-camera'
 import { useMotionGuard } from '../useMotionGuard.js'
 import { isSecondsMode } from '../timerRing.js'
 import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
@@ -30,6 +33,8 @@ function HemScreen({ navigation, route }) {
   const [restored, setRestored] = useState(false)
   const [error, setError] = useState(null)
   const [streak, setStreak] = useState(() => getStreak())
+  const [gotchaOn, setGotchaOn] = useState(() => getSettings().gotchaCamera === true)
+  const [gotcha, setGotcha] = useState(null) // { kind, taskId } medan kameran tar en bild
   // Vakten bor här och inte i formuläret, så att den lever vidare när ett tjat startas
   const guard = useMotionGuard(active ? localSoundUri(active.id) : null, active ? endsAt : null)
 
@@ -141,6 +146,7 @@ function HemScreen({ navigation, route }) {
     const ends = Date.now() + extraSeconds * 1000
 
     showNaggingIcon() // ikonen blir arg först när man skjuter upp
+    if (gotchaOn) setGotcha({ kind: 'snooze', taskId: snoozed.id })
     setActive(snoozed)
     setEndsAt(ends)
     saveActive(snoozed.id, ends, deadline)
@@ -167,6 +173,7 @@ function HemScreen({ navigation, route }) {
     }
     stopActive()
     setStreak(recordCompletion(onTime))
+    if (gotchaOn) setGotcha({ kind: onTime ? 'done' : 'late', taskId: finished.id })
     if (onTime) showDoneIcon()
     else showNaggingIcon()
     try {
@@ -177,10 +184,33 @@ function HemScreen({ navigation, route }) {
     }
   }
 
-  // Streaken visas uppe till vänster i rubrikraden
+  // Ertappad-kameran slås på och av uppe till höger. Kameran behöver lov
+  // först - utan det förblir den av.
+  async function toggleGotcha() {
+    const next = !gotchaOn
+    if (next) {
+      const { granted } = await requestCameraPermissionsAsync()
+      if (!granted) return setError('Tjat behöver kameran för att kunna ta dig på bar gärning.')
+    }
+    saveSetting('gotchaCamera', next)
+    setGotchaOn(next)
+  }
+
+  // Streaken uppe till vänster, kameran uppe till höger
   useLayoutEffect(() => {
-    navigation.setOptions({ headerLeft: () => <StreakBadge count={streak} /> })
-  }, [navigation, streak])
+    navigation.setOptions({
+      headerLeft: () => <StreakBadge count={streak} />,
+      headerRight: () => (
+        <Pressable
+          onPress={toggleGotcha}
+          hitSlop={8}
+          accessibilityLabel={gotchaOn ? 'Stäng av ertappad-kameran' : 'Slå på ertappad-kameran'}
+        >
+          <CameraIcon color={gotchaOn ? colors.accent : colors.muted} off={!gotchaOn} />
+        </Pressable>
+      ),
+    })
+  }, [navigation, streak, gotchaOn])
 
   // Knapptryck på notisen: Klart eller Snooza. Hooken fångar även trycket
   // som startade appen kallt, därför väntar vi in återställningen först.
@@ -213,6 +243,7 @@ function HemScreen({ navigation, route }) {
       </Pressable>
 
       <GuardScreen phase={guard.phase} onDisarm={guard.disarm} />
+      <GotchaCamera shot={gotcha} onSaved={load} onClose={() => setGotcha(null)} />
 
       <FlatList
         style={styles.history}

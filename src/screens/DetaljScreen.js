@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
 import { deleteTask, updateTask } from '../store.js'
 import { deleteLocalSound } from '../sounds.js'
@@ -9,6 +9,8 @@ import { turnDial } from '../dial.js'
 import { isSecondsMode, ringUnits } from '../timerRing.js'
 import { formatDuration } from '../time.js'
 import { colors } from '../theme.js'
+
+const PHOTO_LABELS = { snooze: 'Ertappad', done: 'Klarat', late: 'Till slut' }
 
 // Detaljvyn för ett tjat: allt som är sparat om det, möjligheten att lyssna
 // på inspelningen igen och att köra tjatet en gång till. Det pågående tjatet
@@ -134,6 +136,23 @@ function DetaljScreen({ route, navigation }) {
           <Text style={styles.noAudio}>Inget inspelat tjat</Text>
         ))}
 
+      {/* Ertappad-bilderna, nyast först */}
+      {!editingTime && task.photos?.length > 0 && (
+        <View style={styles.proof}>
+          <Text style={styles.proofTitle}>Bevis</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.proofRow}>
+            {[...task.photos].reverse().map((photo) => (
+              <View key={photo.name}>
+                <Image source={{ uri: photo.uri }} style={styles.photo} />
+                <Text style={[styles.photoLabel, photo.kind === 'snooze' && styles.photoCaught]}>
+                  {PHOTO_LABELS[photo.kind] ?? 'Klarat'}
+                </Text>
+              </View>
+            ))}
+          </ScrollView>
+        </View>
+      )}
+
       {!editingTime && !isActive && (
         <Pressable style={styles.deleteBtn} onPress={confirmDelete}>
           <Text style={styles.deleteText}>Ta bort tjatet</Text>
@@ -212,6 +231,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   deleteText: { color: colors.accentDark, fontWeight: '600', fontSize: 16 },
+  proof: { gap: 8 },
+  proofTitle: { color: colors.muted, fontSize: 15 },
+  proofRow: { gap: 10 },
+  photo: { width: 88, height: 88, borderRadius: 12, backgroundColor: colors.border },
+  photoLabel: { marginTop: 4, textAlign: 'center', fontSize: 12, fontWeight: '700', color: colors.ok },
+  photoCaught: { color: colors.accentDark },
 })
 
 export default DetaljScreen

@@ -55,6 +55,14 @@
             }
           }
         ]
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Tjat tar en bild med frontkameran när du snoozar eller klarar ett tjat, men bara om du har slagit på kameran.",
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": false
+        }
       ]
     ],
     "extra": {

@@ -83,3 +83,14 @@ export function FlameIcon({ color }) {
     </Icon>
   )
 }
+
+// Kameran för ertappad-bilderna. Avstängd får den ett snedstreck.
+export function CameraIcon({ color, off = false }) {
+  return (
+    <Icon color={color}>
+      <Path d="M4 8h3l1.5-2h7L17 8h3v11H4z" />
+      <Circle cx="12" cy="13" r="3.5" />
+      {off && <Path d="M3 3l18 18" />}
+    </Icon>
+  )
+}

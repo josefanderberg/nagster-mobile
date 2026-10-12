@@ -5,6 +5,7 @@ import { Directory, File, Paths } from 'expo-file-system'
 // så skärmarna behövde inte ändras.
 const tasksFile = new File(Paths.document, 'tjat.json')
 const recordingsDir = new Directory(Paths.document, 'inspelningar')
+const photosDir = new Directory(Paths.document, 'bilder')
 
 function readAll() {
   try {
@@ -25,8 +26,11 @@ function writeAll(tasks) {
 // iOS byter sökväg till appens mapp vid varje uppdatering, så i filen
 // sparas bara inspelningens namn. Skärmarna får den fulla adressen.
 function withUri(task) {
-  if (!task.filePath) return task
-  return { ...task, filePath: new File(recordingsDir, task.filePath).uri }
+  return {
+    ...task,
+    filePath: task.filePath ? new File(recordingsDir, task.filePath).uri : null,
+    photos: (task.photos ?? []).map((photo) => ({ ...photo, uri: new File(photosDir, photo.name).uri })),
+  }
 }
 
 // Nyast först
@@ -77,9 +81,13 @@ export async function deleteTask(id) {
   const tasks = readAll()
   const task = tasks.find((item) => item.id === id)
   writeAll(tasks.filter((item) => item.id !== id))
-  if (task?.filePath) {
+  const files = [
+    task?.filePath && new File(recordingsDir, task.filePath),
+    ...(task?.photos ?? []).map((photo) => new File(photosDir, photo.name)),
+  ].filter(Boolean)
+  for (const file of files) {
     try {
-      new File(recordingsDir, task.filePath).delete()
+      file.delete()
     } catch {
       // redan borta
     }
@@ -128,4 +136,43 @@ export function recordCompletion(onTime) {
     // utan fil börjar streaken om nästa gång - inget att stoppa Klart för
   }
   return next
+}
+
+// Inställningar, t.ex. om ertappad-kameran är på
+const settingsFile = new File(Paths.document, 'installningar.json')
+
+export function getSettings() {
+  try {
+    return settingsFile.exists ? JSON.parse(settingsFile.textSync()) : {}
+  } catch {
+    return {}
+  }
+}
+
+export function saveSetting(key, value) {
+  const next = { ...getSettings(), [key]: value }
+  try {
+    settingsFile.write(JSON.stringify(next))
+  } catch {
+    // inställningen gäller tills appen startas om - inget farligt
+  }
+  return next
+}
+
+// Ertappad-bilderna: kopieras till Documents/bilder och listas på tjatet.
+// kind är 'snooze' (ertappad) eller 'done' (klarat).
+export async function savePhoto(id, photoUri, kind) {
+  const name = `tjat-${id}-${Date.now()}.jpg`
+  try {
+    photosDir.create({ intermediates: true, idempotent: true })
+    new File(photoUri).copySync(new File(photosDir, name))
+  } catch {
+    throw new Error('Kunde inte spara bilden')
+  }
+  const tasks = readAll()
+  const task = tasks.find((item) => item.id === id)
+  if (!task) return null
+  task.photos = [...(task.photos ?? []), { name, kind, at: new Date().toISOString() }]
+  writeAll(tasks)
+  return withUri(task)
 }
