@@ -3,6 +3,7 @@ import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useKeepAwake } from 'expo-keep-awake'
 import TimerRing from './TimerRing.js'
 import HoloText from './HoloText.js'
+import GuardButton from './GuardButton.js'
 import { ClockIcon, TimerIcon } from './icons.js'
 import { localSoundUri } from '../sounds.js'
 import { playNag, speakNag } from '../nag.js'
@@ -111,6 +112,9 @@ function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
         <Pressable style={styles.cornerBtn} onPress={() => setShowClock((shown) => !shown)}>
           {showClock ? <TimerIcon color={colors.muted} /> : <ClockIcon color={colors.muted} />}
         </Pressable>
+
+        {/* Vakten går att slå på även när tiden redan går - knappen blinkar som påminnelse */}
+        <GuardButton guard={guard} blinkSeed={task.id} />
       </View>
 
       {/* Samma höjd som formulärets knapprad, annars hoppar ringen */}

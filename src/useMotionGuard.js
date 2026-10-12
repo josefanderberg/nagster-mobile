@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { Platform, Vibration } from 'react-native'
 import { Accelerometer } from 'expo-sensors'
 import { setAudioModeAsync } from 'expo-audio'
-import { playNag } from './nag.js'
-import { startBuzz, stopBuzz } from '../modules/tjat-native/index.js'
+import { playNag, startEscalatingBuzz } from './nag.js'
 
 export const DISARM_HOLD_MS = 3000
+export const SUSPICION_MS = 3000 // blått -> orange -> rött innan rösten drar igång
 
 const ARM_MS = 2250 // 3:an blinkar förbi, sen en sekund var på 2 och 1
 const TICK_MS = 100
@@ -15,22 +14,27 @@ const RETURN_THRESHOLD = 0.08 // snävare, annars slår larmet av och på i kant
 const STILL_THRESHOLD = 0.03
 const STILL_READINGS = 3
 const FLAT = 0.9 // tyngdkraften drar rakt genom skärmen
-// iOS tolkar mönstret som pauser mellan vibrationerna, Android som vänta/vibrera
-const ALARM_PATTERN = Platform.OS === 'ios' ? [0, 1] : [0, 1000]
+const FREE_MS = 2000 // så länge den gröna skärmen syns innan vakten släpper
+const EARLY_MS = 1000 // så här tidigt före sluttiden räknas upplockningen som i tid
 
 function distance(a, b) {
   return Math.hypot(a.x - b.x, a.y - b.y, a.z - b.z)
 }
 
 // Rörelsevakten sparar telefonens läge på bordet och larmar om den flyttas.
-// Fristående från tjat-timern och sparar ingenting. alarmSoundUri är det
-// aktiva tjatets lokala inspelning - finns den skäller den med i larmet.
-// Faser: 'off' -> 'arming' -> 'watching' <-> 'alarm'
-export function useMotionGuard(alarmSoundUri) {
+// Sparar ingenting. alarmSoundUri är det aktiva tjatets lokala inspelning -
+// finns den skäller den med i larmet. endsAt är tjatets sluttid: plockas
+// mobilen upp när tiden är ute är man klar, och då blir skärmen grön i
+// stället för röd.
+// Faser: 'off' -> 'arming' -> 'watching' <-> 'alarm', eller 'watching' -> 'free' -> 'off'
+export function useMotionGuard(alarmSoundUri, endsAt) {
   const [phase, setPhase] = useState('off')
   const [armLeft, setArmLeft] = useState(Math.ceil(ARM_MS / 1000))
   const resting = useRef(null)
   const armEndsAt = useRef(0)
+  // Ref i stället för beroende, så att accelerometern inte startas om vid snooze
+  const timerEndsAt = useRef(endsAt)
+  timerEndsAt.current = endsAt
 
   // Räknar mot en fast sluttid, annars glider tiden iväg för varje steg
   useEffect(() => {
@@ -62,7 +66,10 @@ export function useMotionGuard(alarmSoundUri) {
           resting.current = reading
           return
         }
-        if (distance(reading, resting.current) > MOVE_THRESHOLD) setPhase('alarm')
+        if (distance(reading, resting.current) > MOVE_THRESHOLD) {
+          const ends = timerEndsAt.current
+          setPhase(ends && Date.now() >= ends - EARLY_MS ? 'free' : 'alarm')
+        }
         return
       }
 
@@ -82,16 +89,26 @@ export function useMotionGuard(alarmSoundUri) {
     return () => subscription.remove()
   }, [phase])
 
-  // Ett ihållande surr utan pauser (Core Haptics), eller systemets vibrations-
-  // loop där det inte finns. Finns en inspelning skäller rösten med på
-  // maxvolym, även med ljudlös-knappen på.
+  // Tiden var ute när mobilen plockades upp: grönt en stund, sedan släpper
+  // vakten så att man kan trycka Klart
+  useEffect(() => {
+    if (phase !== 'free') return
+    const timeout = setTimeout(() => setPhase('off'), FREE_MS)
+    return () => clearTimeout(timeout)
+  }, [phase])
+
+  // Vibrationen trappas upp exponentiellt tills mobilen ligger stilla igen.
+  // Finns en inspelning skäller rösten med på maxvolym, även med ljudlös-
+  // knappen på.
   useEffect(() => {
     if (phase !== 'alarm') return
-    if (!startBuzz()) Vibration.vibrate(ALARM_PATTERN, true)
+    const stopBuzzing = startEscalatingBuzz()
 
     let stopVoice = null
     let cancelled = false
-    if (alarmSoundUri) {
+    // Rösten väntar tills skärmen hunnit bli röd
+    const voiceTimer = setTimeout(() => {
+      if (!alarmSoundUri) return
       setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'doNotMix' })
         .then(() => playNag(alarmSoundUri, 2)) // snooze 2 = maxvolym, lite gällare
         .then((stop) => {
@@ -99,12 +116,12 @@ export function useMotionGuard(alarmSoundUri) {
           else stopVoice = stop
         })
         .catch(() => {}) // utan ljud larmar vibrationen ändå
-    }
+    }, SUSPICION_MS)
 
     return () => {
       cancelled = true
-      stopBuzz()
-      Vibration.cancel()
+      clearTimeout(voiceTimer)
+      stopBuzzing()
       stopVoice?.()
     }
   }, [phase, alarmSoundUri])

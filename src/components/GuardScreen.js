@@ -1,20 +1,33 @@
 import { useEffect, useRef, useState } from 'react'
-import { Animated, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
+import { Animated, Easing, Modal, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native'
 import { StatusBar } from 'expo-status-bar'
 import { useHoldToConfirm } from '../useHoldToConfirm.js'
+import { SUSPICION_MS } from '../useMotionGuard.js'
 
 const BLACK = '#000000'
 const DIM = '#1c1c1e'
+const BLUE = '#2f6fed'
+const ORANGE = '#f08c00'
 const RED = '#c1121f'
+const GREEN = '#2e9e5b'
 const WHITE = '#ffffff'
 const HINT_MS = 2500
 
+// Vakten blir allt mer misstänksam: först kollar den bara läget, sedan
+// blir den orolig och till sist skriker den. Lägger man ner mobilen börjar
+// den om från början nästa gång.
+const STAGES = [
+  { heading: 'Hm?', sub: 'Vad gör du med mobilen?' },
+  { heading: 'VAD HÅLLER\nDU PÅ MED?', sub: 'Lägg tillbaka den.' },
+  { heading: 'LÄGG NED\nMOBILEN', sub: 'Lägg tillbaka den så tystnar larmet.' },
+]
+
 // Larmets innehåll i valfri färg. Ritas två gånger, se nedan.
-function AlarmContent({ color }) {
+function AlarmContent({ color, stage }) {
   return (
     <View style={styles.content}>
-      <Text style={[styles.heading, { color }]}>LÄGG NED{'\n'}MOBILEN</Text>
-      <Text style={[styles.sub, { color }]}>Lägg tillbaka den så tystnar larmet.</Text>
+      <Text style={[styles.heading, { color }]}>{STAGES[stage].heading}</Text>
+      <Text style={[styles.sub, { color }]}>{STAGES[stage].sub}</Text>
       <View style={[styles.hold, { borderColor: color }]}>
         <Text style={[styles.holdText, { color }]}>Håll inne i 3 sekunder för att stänga av vakten</Text>
       </View>
@@ -32,7 +45,34 @@ function GuardScreen({ phase, onDisarm }) {
   const hintTimer = useRef(null)
 
   const alarm = phase === 'alarm'
-  const visible = phase === 'watching' || alarm
+  const free = phase === 'free' // tiden var ute när mobilen plockades upp
+  const visible = phase === 'watching' || alarm || free
+
+  // Färgen glider blått -> orange -> rött under misstänksamhetens sekunder
+  const [stage, setStage] = useState(0)
+  const suspicion = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    if (!alarm) return
+    setStage(0)
+    suspicion.setValue(0)
+    Animated.timing(suspicion, {
+      toValue: 2,
+      duration: SUSPICION_MS,
+      easing: Easing.in(Easing.quad), // lugnt först, sedan allt snabbare
+      useNativeDriver: false,
+    }).start()
+    const timers = [
+      setTimeout(() => setStage(1), SUSPICION_MS / 2),
+      setTimeout(() => setStage(2), SUSPICION_MS),
+    ]
+    return () => {
+      suspicion.stopAnimation()
+      timers.forEach(clearTimeout)
+    }
+  }, [alarm, suspicion])
+
+  const alarmColor = suspicion.interpolate({ inputRange: [0, 1, 2], outputRange: [BLUE, ORANGE, RED] })
 
   useEffect(() => () => clearTimeout(hintTimer.current), [])
 
@@ -52,19 +92,27 @@ function GuardScreen({ phase, onDisarm }) {
     <Modal visible={visible} animationType="none" statusBarTranslucent>
       <StatusBar hidden />
       <Pressable
-        style={{ width, height, backgroundColor: alarm ? RED : BLACK }}
+        style={{ width, height, backgroundColor: alarm ? 'transparent' : free ? GREEN : BLACK }}
         onPressIn={handlePressIn}
         onPressOut={hold.stopHold}
       >
-        {alarm ? (
+        {free ? (
+          <View style={[styles.layer, { height }]}>
+            <View style={styles.content}>
+              <Text style={[styles.heading, { color: WHITE }]}>SNYGGT!</Text>
+              <Text style={[styles.sub, { color: WHITE }]}>Tiden är ute - nu får du ta upp mobilen.</Text>
+            </View>
+          </View>
+        ) : alarm ? (
           <>
-            {/* Vitt på rött underst, rött på vitt i fyllnaden som klipper */}
+            <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: alarmColor }]} />
+            {/* Vitt på färg underst, rött på vitt i fyllnaden som klipper */}
             <View style={[styles.layer, { height }]}>
-              <AlarmContent color={WHITE} />
+              <AlarmContent color={WHITE} stage={stage} />
             </View>
             <Animated.View pointerEvents="none" style={[styles.fill, { height: fillHeight, backgroundColor: WHITE }]}>
               <View style={[styles.layer, { height }]}>
-                <AlarmContent color={RED} />
+                <AlarmContent color={RED} stage={stage} />
               </View>
             </Animated.View>
           </>
