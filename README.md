@@ -46,7 +46,7 @@ För TestFlight: `eas build --profile production --platform ios --auto-submit`.
 - **expo-audio** och inte `expo-av`, som är utfasat från SDK 54
 - **Lokala notiser med egen röst som larmljud**: iOS spelar bara upp egna notisljud i okomprimerade format från appens `Library/Sounds`, därför spelas tjatet in som wav på iOS och en kopia sparas lokalt. Notisen tjatar alltså med din röst även när appen är dödad.
 - **Fast sluttid i stället för nedräknare** - timern räknar mot en tidsstämpel, så den visar rätt även efter en stund i bakgrunden, och en dödad app återupptar tjatet från en liten JSON-fil
-- **En egen liten native-modul** (`modules/tjat-haptik`, några rader Swift) för två saker expo-haptics inte kan: haptik i ringen medan mikrofonen spelar in, som iOS annars stänger av, och ett ihållande larmsurr via Core Haptics i stället för systemvibrationens korta stötar
+- **En egen liten native-modul** (`modules/tjat-native`, lite Swift) för det Expos moduler inte kan: haptik i ringen medan mikrofonen spelar in, som iOS annars stänger av, ett ihållande larmsurr via Core Haptics, och skrivna tjat som läses in med telefonens bästa röst till en ljudfil så att även notisen kan läsa upp dem
 - **expo-sensors** för accelerometern och **vibration** för larmet, funktioner som saknas i en webbläsare och som är hela anledningen till att appen finns som mobilapp
 - **Lokal lagring i stället för API** - appen ska fungera i skogen utan täckning. Tjaten ligger i en JSON-fil och inspelningarna i `Documents/inspelningar` (expo-file-system). Ett tjat i taget och en kort historik behöver ingen databas.
 - **Bara filnamnet sparas** för inspelningarna, eftersom iOS byter sökväg till appens mapp vid varje uppdatering
