@@ -4,6 +4,13 @@ import { colors } from '../theme.js'
 
 function TaskCard({ task, isActive = false, onCancel, onPress }) {
   const isDone = task.status === 'done'
+  // T.ex. "Försenad 4m · snoozad 2 ggr" - äldre tjat saknar lateSeconds
+  const notes = [
+    task.lateSeconds > 0 && `försenad ${formatDuration(task.lateSeconds)}`,
+    task.snoozeCount > 0 && `snoozad ${task.snoozeCount} ggr`,
+  ]
+    .filter(Boolean)
+    .join(' · ')
 
   return (
     <Pressable
@@ -29,9 +36,7 @@ function TaskCard({ task, isActive = false, onCancel, onPress }) {
         </View>
       </View>
 
-      {task.snoozeCount > 0 && (
-        <Text style={styles.snooze}>Snoozad {task.snoozeCount} ggr</Text>
-      )}
+      {notes !== '' && <Text style={styles.snooze}>{notes.charAt(0).toUpperCase() + notes.slice(1)}</Text>}
     </Pressable>
   )
 }

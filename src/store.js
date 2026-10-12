@@ -42,6 +42,8 @@ export async function createTask({ title, durationSeconds }) {
     snoozeCount: 0,
     durationSeconds,
     filePath: null,
+    doneCount: 0, // hur många gånger tjatet klarats, räknas upp vid Kör igen
+    lateSeconds: 0, // hur sent det klarades förra gången
     createdAt: new Date().toISOString(),
   }
   writeAll([task, ...readAll()])
@@ -49,12 +51,12 @@ export async function createTask({ title, durationSeconds }) {
 }
 
 // Bara fälten som går att ändra - resten behåller sitt gamla värde
-export async function updateTask(id, { title, status, snoozeCount, durationSeconds }) {
+export async function updateTask(id, { title, status, snoozeCount, durationSeconds, doneCount, lateSeconds }) {
   const tasks = readAll()
   const index = tasks.findIndex((task) => task.id === id)
   if (index === -1) throw new Error('Tjatet finns inte längre')
 
-  const updated = { ...tasks[index], title, status, snoozeCount, durationSeconds }
+  const updated = { ...tasks[index], title, status, snoozeCount, durationSeconds, doneCount, lateSeconds }
   tasks[index] = updated
   writeAll(tasks)
   return withUri(updated)
@@ -66,7 +68,7 @@ export async function restartTask(id, durationSeconds) {
   const task = tasks.find((item) => item.id === id)
   if (!task) throw new Error('Tjatet finns inte längre')
 
-  const restarted = { ...task, status: 'pending', snoozeCount: 0, durationSeconds }
+  const restarted = { ...task, status: 'pending', snoozeCount: 0, lateSeconds: 0, durationSeconds }
   writeAll([restarted, ...tasks.filter((item) => item.id !== id)])
   return withUri(restarted)
 }

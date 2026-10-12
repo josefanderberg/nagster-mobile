@@ -89,7 +89,9 @@ function DetaljScreen({ route, navigation }) {
         <Pressable disabled={isActive} onPress={() => setEditingTime((shown) => !shown)}>
           <Row label="Tid" value={formatDuration(seconds)} editable={!isActive} />
         </Pressable>
+        <Row label="Klarat" value={`${task.doneCount ?? 0} ggr`} />
         <Row label="Snoozad" value={`${task.snoozeCount} ggr`} />
+        {task.lateSeconds > 0 && <Row label="Försenad" value={formatDuration(task.lateSeconds)} late />}
         <Row label="Skapad" value={created} />
       </View>
 
@@ -131,11 +133,11 @@ function DetaljScreen({ route, navigation }) {
   )
 }
 
-function Row({ label, value, editable = false }) {
+function Row({ label, value, editable = false, late = false }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={[styles.rowValue, editable && styles.rowEditable]}>{value}</Text>
+      <Text style={[styles.rowValue, editable && styles.rowEditable, late && styles.rowLate]}>{value}</Text>
     </View>
   )
 }
@@ -172,6 +174,7 @@ const styles = StyleSheet.create({
   rowLabel: { color: colors.muted, fontSize: 15 },
   rowValue: { color: colors.text, fontSize: 15, fontWeight: '600' },
   rowEditable: { color: colors.accent },
+  rowLate: { color: colors.accentDark },
   ring: { alignItems: 'center' },
   rerunBtn: {
     backgroundColor: colors.accent,

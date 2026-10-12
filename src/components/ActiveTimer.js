@@ -10,8 +10,9 @@ import { clockTime, formatCountdown } from '../time.js'
 import { colors } from '../theme.js'
 
 // Tjatet som är igång: ringen räknar ner och går inte att dra i.
-// Ett varv är en minut, så sekundvisaren syns tydligt.
-function ActiveTimer({ task, endsAt, guard, onDone, onSnooze }) {
+// Ett varv är en minut, så sekundvisaren syns tydligt. När tiden är ute
+// räknar ringen i stället uppåt i rött och tjatet stämplas som försenat.
+function ActiveTimer({ task, endsAt, deadline, guard, onDone, onSnooze }) {
   useKeepAwake() // skärmen får inte somna - då slutar accelerometern mäta
 
   // Tiden kvar härleds ur en fast sluttid i stället för att räknas ner,
@@ -22,6 +23,10 @@ function ActiveTimer({ task, endsAt, guard, onDone, onSnooze }) {
 
   const secondsLeft = Math.max(0, Math.ceil((endsAt - now) / 1000))
   const expired = secondsLeft === 0
+  // Förseningen räknas från första sluttiden - en snooze ger mer tid men
+  // tar inte bort stämpeln
+  const late = deadline !== null && now >= deadline
+  const lateSeconds = Math.max(0, Math.floor((now - deadline) / 1000))
 
   useEffect(() => {
     const tick = () => setNow(Date.now())
@@ -75,13 +80,30 @@ function ActiveTimer({ task, endsAt, guard, onDone, onSnooze }) {
   return (
     <View style={styles.wrapper}>
       <View>
-        <TimerRing
-          units={secondsLeft}
-          label={showClock ? clockTime(secondsLeft) : formatCountdown(secondsLeft)}
-          color={expired ? colors.accentDark : colors.ok}
-          mirrored={isSecondsMode(task.durationSeconds)}
-          interactive={false}
-        />
+        {expired ? (
+          <TimerRing
+            units={lateSeconds}
+            label={`+${formatCountdown(lateSeconds)}`}
+            color={colors.accentDark}
+            interactive={false}
+          />
+        ) : (
+          <TimerRing
+            units={secondsLeft}
+            label={showClock ? clockTime(secondsLeft) : formatCountdown(secondsLeft)}
+            color={colors.ok}
+            mirrored={isSecondsMode(task.durationSeconds)}
+            interactive={false}
+          />
+        )}
+
+        {late && (
+          <View pointerEvents="none" style={styles.stampWrap}>
+            <View style={styles.stamp}>
+              <Text style={styles.stampText}>FÖRSENAD</Text>
+            </View>
+          </View>
+        )}
 
         <Pressable style={styles.cornerBtn} onPress={() => setShowClock((shown) => !shown)}>
           {showClock ? <TimerIcon color={colors.muted} /> : <ClockIcon color={colors.muted} />}
@@ -95,12 +117,17 @@ function ActiveTimer({ task, endsAt, guard, onDone, onSnooze }) {
         </Text>
       </View>
 
-      <Pressable
-        style={[styles.btn, expired ? styles.snooze : styles.done]}
-        onPress={expired ? handleSnooze : handleDone}
-      >
-        <Text style={styles.btnText}>{expired ? 'Snooza' : 'Klart'}</Text>
-      </Pressable>
+      {/* Klart går alltid - även för sent. Snooza först när tiden är ute. */}
+      <View style={styles.buttons}>
+        <Pressable style={[styles.btn, styles.done]} onPress={handleDone}>
+          <Text style={styles.btnText}>Klart</Text>
+        </Pressable>
+        {expired && (
+          <Pressable style={[styles.btn, styles.snooze]} onPress={handleSnooze}>
+            <Text style={styles.btnText}>Snooza</Text>
+          </Pressable>
+        )}
+      </View>
 
     </View>
   )
@@ -124,7 +151,20 @@ const styles = StyleSheet.create({
   titleRow: { height: 46, justifyContent: 'center' },
   title: { color: colors.muted, fontSize: 15 },
   guardText: { color: colors.accent, fontWeight: '600' },
+  buttons: { flexDirection: 'row', gap: 12 },
   btn: { borderRadius: 10, paddingVertical: 10, paddingHorizontal: 28 },
+  // Som en gummistämpel: snett, fet kant och lite genomskinlig bakgrund
+  stampWrap: { position: 'absolute', top: 36, left: 0, right: 0, alignItems: 'center' },
+  stamp: {
+    borderWidth: 3,
+    borderColor: colors.accentDark,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    backgroundColor: 'rgba(250, 247, 242, 0.9)',
+    transform: [{ rotate: '-12deg' }],
+  },
+  stampText: { color: colors.accentDark, fontSize: 18, fontWeight: '900', letterSpacing: 2 },
   done: { backgroundColor: colors.ok },
   snooze: { backgroundColor: colors.accent },
   btnText: { color: '#fff', fontWeight: '600', fontSize: 16 },

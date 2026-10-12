@@ -4,9 +4,11 @@ import { File, Paths } from 'expo-file-system'
 // Notisen levereras av systemet ändå - det här är för timern i appen.
 const file = new File(Paths.document, 'aktivt-tjat.json')
 
-export function saveActive(taskId, endsAt) {
+// deadline är den första sluttiden. Snooze flyttar endsAt men aldrig deadline,
+// så att förseningen räknas från när tjatet egentligen skulle vara klart.
+export function saveActive(taskId, endsAt, deadline) {
   try {
-    file.write(JSON.stringify({ taskId, endsAt }))
+    file.write(JSON.stringify({ taskId, endsAt, deadline }))
   } catch {
     // utan minne startar appen bara utan aktivt tjat - inget farligt
   }

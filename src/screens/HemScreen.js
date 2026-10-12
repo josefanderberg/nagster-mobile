@@ -21,6 +21,7 @@ function HemScreen({ navigation, route }) {
   const [tasks, setTasks] = useState([])
   const [active, setActive] = useState(null) // bara ett tjat åt gången
   const [endsAt, setEndsAt] = useState(null) // fast sluttid, överlever bakgrund
+  const [deadline, setDeadline] = useState(null) // första sluttiden, flyttas inte av snooze
   const [restored, setRestored] = useState(false)
   const [error, setError] = useState(null)
   // Vakten bor här och inte i formuläret, så att den lever vidare när ett tjat startas
@@ -58,6 +59,7 @@ function HemScreen({ navigation, route }) {
           // Även en passerad sluttid återställs - timern visar 0 och tjatar
           setActive(task)
           setEndsAt(saved.endsAt)
+          setDeadline(saved.deadline ?? saved.endsAt) // äldre minnen saknar deadline
         } else {
           clearActive()
         }
@@ -70,6 +72,7 @@ function HemScreen({ navigation, route }) {
   function stopActive() {
     setActive(null)
     setEndsAt(null)
+    setDeadline(null)
     cancelAlarm()
     clearActive()
   }
@@ -82,7 +85,8 @@ function HemScreen({ navigation, route }) {
 
     setActive(task)
     setEndsAt(ends)
-    saveActive(task.id, ends)
+    setDeadline(ends)
+    saveActive(task.id, ends, ends)
     await load()
   }
 
@@ -128,7 +132,7 @@ function HemScreen({ navigation, route }) {
 
     setActive(snoozed)
     setEndsAt(ends)
-    saveActive(snoozed.id, ends)
+    saveActive(snoozed.id, ends, deadline)
     try {
       await scheduleAlarm(snoozed, ends, localSoundUri(snoozed.id) ? soundName(snoozed.id) : null)
       await updateTask(snoozed.id, snoozed)
@@ -138,8 +142,15 @@ function HemScreen({ navigation, route }) {
     }
   }
 
+  // Klart räknar upp hur många gånger tjatet klarats och sparar hur sent det
+  // blev - räknat från första sluttiden, så varje snooze gör det senare
   async function handleDone() {
-    const finished = { ...active, status: 'done' }
+    const finished = {
+      ...active,
+      status: 'done',
+      doneCount: (active.doneCount ?? 0) + 1,
+      lateSeconds: Math.max(0, Math.floor((Date.now() - deadline) / 1000)),
+    }
     stopActive()
     try {
       await updateTask(finished.id, finished)
@@ -173,7 +184,7 @@ function HemScreen({ navigation, route }) {
       {/* Tryck utanför textrutan fäller ner tangentbordet, så Starta syns igen */}
       <Pressable style={styles.hero} onPress={Keyboard.dismiss} accessible={false}>
         {active ? (
-          <ActiveTimer task={active} endsAt={endsAt} guard={guard} onDone={handleDone} onSnooze={handleSnooze} />
+          <ActiveTimer task={active} endsAt={endsAt} deadline={deadline} guard={guard} onDone={handleDone} onSnooze={handleSnooze} />
         ) : (
           <TaskForm onAdd={handleAdd} onError={setError} guard={guard} />
         )}
