@@ -10,7 +10,7 @@ import { colors } from '../theme.js'
 import { ClockIcon, PencilIcon, TimerIcon } from './icons.js'
 import GuardButton from './GuardButton.js'
 
-const DEFAULT_SECONDS = 10 * 60
+const DEFAULT_SECONDS = 10
 const DEFAULT_TITLE = 'Inspelat tjat'
 
 function TaskForm({ onAdd, onError, guard }) {
