@@ -14,7 +14,7 @@ export function saveActive(taskId, endsAt) {
 
 export function loadActive() {
   try {
-    return file.exists ? JSON.parse(file.text()) : null
+    return file.exists ? JSON.parse(file.textSync()) : null
   } catch {
     return null
   }
