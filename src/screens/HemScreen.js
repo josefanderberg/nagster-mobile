@@ -13,6 +13,7 @@ import ErrorBanner from '../components/ErrorBanner.js'
 import GuardScreen from '../components/GuardScreen.js'
 import { useMotionGuard } from '../useMotionGuard.js'
 import { isSecondsMode } from '../timerRing.js'
+import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
 import { colors } from '../theme.js'
 
 const SNOOZE_MINUTES = 10
@@ -83,6 +84,7 @@ function HemScreen({ navigation, route }) {
     const ends = Date.now() + seconds * 1000
     if (await ensureNotificationPermission()) await scheduleAlarm(task, ends, sound)
 
+    showNaggingIcon()
     setActive(task)
     setEndsAt(ends)
     setDeadline(ends)
@@ -152,6 +154,7 @@ function HemScreen({ navigation, route }) {
       lateSeconds: Math.max(0, Math.floor((Date.now() - deadline) / 1000)),
     }
     stopActive()
+    showDoneIcon()
     try {
       await updateTask(finished.id, finished)
       await load()

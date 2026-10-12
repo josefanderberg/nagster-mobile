@@ -42,7 +42,20 @@
         }
       ],
       "expo-notifications",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-alternate-app-icons",
+        [
+          {
+            "name": "Klar",
+            "ios": "./assets/icon-klar.png",
+            "android": {
+              "foregroundImage": "./assets/icon-klar-foreground.png",
+              "backgroundColor": "#2e9e5b"
+            }
+          }
+        ]
+      ]
     ],
     "extra": {
       "eas": {
