@@ -1,16 +1,25 @@
+import { useRef, useState } from 'react'
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
-import { deleteTask } from '../store.js'
+import { deleteTask, updateTask } from '../store.js'
 import { deleteLocalSound } from '../sounds.js'
+import TimerRing from '../components/TimerRing.js'
+import { turnDial } from '../dial.js'
+import { isSecondsMode, ringUnits } from '../timerRing.js'
 import { formatDuration } from '../time.js'
 import { colors } from '../theme.js'
 
-// Detaljvyn för ett tjat: allt som är sparat om det, plus möjligheten att
-// lyssna på inspelningen igen.
+// Detaljvyn för ett tjat: allt som är sparat om det, möjligheten att lyssna
+// på inspelningen igen och att köra tjatet en gång till. Det pågående tjatet
+// går varken att ändra, köra om eller ta bort - timern använder det.
 function DetaljScreen({ route, navigation }) {
-  const { task, canDelete } = route.params
+  const { task, isActive, canRerun } = route.params
   const player = useAudioPlayer(task.filePath)
   const status = useAudioPlayerStatus(player)
+  const [seconds, setSeconds] = useState(task.durationSeconds)
+  const [editingTime, setEditingTime] = useState(false)
+  // Det senaste värdet, så att sparandet när fingret släpper inte missar sista steget
+  const latestSeconds = useRef(seconds)
 
   const isDone = task.status === 'done'
   const created = new Date(task.createdAt).toLocaleString('sv-SE', {
@@ -27,6 +36,23 @@ function DetaljScreen({ route, navigation }) {
       player.seekTo(0)
       player.play()
     }
+  }
+
+  function handlePointer(x, y, rect) {
+    latestSeconds.current = turnDial(latestSeconds.current, x, y, rect)
+    setSeconds(latestSeconds.current)
+  }
+
+  // Sparas när fingret släpper ringen, inte för varje steg
+  function saveTime() {
+    updateTask(task.id, { ...task, durationSeconds: latestSeconds.current }).catch((err) =>
+      Alert.alert('Kunde inte spara tiden', err.message)
+    )
+  }
+
+  // Timern bor på Hem, så tjatet startas därifrån
+  function rerun() {
+    navigation.popTo('Hem', { rerun: { id: task.id, seconds: latestSeconds.current } })
   }
 
   // På mobilen bekräftas borttagning med en systemdialog - det går inte att ångra.
@@ -59,20 +85,44 @@ function DetaljScreen({ route, navigation }) {
       </View>
 
       <View style={styles.facts}>
-        <Row label="Tid" value={formatDuration(task.durationSeconds)} />
+        {/* Tryck på tiden för att ändra den med samma ring som på Hem */}
+        <Pressable disabled={isActive} onPress={() => setEditingTime((shown) => !shown)}>
+          <Row label="Tid" value={formatDuration(seconds)} editable={!isActive} />
+        </Pressable>
         <Row label="Snoozad" value={`${task.snoozeCount} ggr`} />
         <Row label="Skapad" value={created} />
       </View>
 
-      {task.filePath ? (
-        <Pressable style={styles.playBtn} onPress={togglePlay}>
-          <Text style={styles.playText}>{status.playing ? 'Pausa' : 'Spela upp tjatet'}</Text>
-        </Pressable>
-      ) : (
-        <Text style={styles.noAudio}>Inget inspelat tjat</Text>
+      {editingTime && (
+        <View style={styles.ring}>
+          <TimerRing
+            units={ringUnits(seconds)}
+            label={formatDuration(seconds)}
+            color={isSecondsMode(seconds) ? colors.seconds : colors.accent}
+            mirrored={isSecondsMode(seconds)}
+            onPointer={handlePointer}
+            onRelease={saveTime}
+          />
+        </View>
       )}
 
-      {canDelete && (
+      {canRerun && (
+        <Pressable style={styles.rerunBtn} onPress={rerun}>
+          <Text style={styles.rerunText}>Kör igen</Text>
+        </Pressable>
+      )}
+
+      {/* Ringen tar plats - knapparna nedanför göms så länge den är framme */}
+      {!editingTime &&
+        (task.filePath ? (
+          <Pressable style={styles.playBtn} onPress={togglePlay}>
+            <Text style={styles.playText}>{status.playing ? 'Pausa' : 'Spela upp tjatet'}</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.noAudio}>Inget inspelat tjat</Text>
+        ))}
+
+      {!editingTime && !isActive && (
         <Pressable style={styles.deleteBtn} onPress={confirmDelete}>
           <Text style={styles.deleteText}>Ta bort tjatet</Text>
         </Pressable>
@@ -81,11 +131,11 @@ function DetaljScreen({ route, navigation }) {
   )
 }
 
-function Row({ label, value }) {
+function Row({ label, value, editable = false }) {
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Text style={styles.rowValue}>{value}</Text>
+      <Text style={[styles.rowValue, editable && styles.rowEditable]}>{value}</Text>
     </View>
   )
 }
@@ -121,13 +171,23 @@ const styles = StyleSheet.create({
   },
   rowLabel: { color: colors.muted, fontSize: 15 },
   rowValue: { color: colors.text, fontSize: 15, fontWeight: '600' },
-  playBtn: {
+  rowEditable: { color: colors.accent },
+  ring: { alignItems: 'center' },
+  rerunBtn: {
     backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  playText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  rerunText: { color: '#fff', fontWeight: '600', fontSize: 16 },
+  playBtn: {
+    borderWidth: 1,
+    borderColor: colors.accent,
+    borderRadius: 10,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  playText: { color: colors.accent, fontWeight: '600', fontSize: 16 },
   noAudio: { color: colors.muted, textAlign: 'center' },
   deleteBtn: {
     borderWidth: 1,

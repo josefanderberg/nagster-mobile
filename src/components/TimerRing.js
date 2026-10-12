@@ -8,7 +8,7 @@ const RING_BOX = { left: 0, top: 0, width: SIZE, height: SIZE }
 
 // Samma ring som i webbappen, ritad med react-native-svg. Två lägen: reglage
 // när tiden ställs in, och nedräkning när tjatet är igång.
-function TimerRing({ units, label, color, onPointer, interactive = true, mirrored = false }) {
+function TimerRing({ units, label, color, onPointer, onRelease, interactive = true, mirrored = false }) {
   // locationX/Y är fingrets läge inuti ringen. Det är stabilare än att mäta var
   // ringen sitter på skärmen - den positionen hinner ändras när sidan laddar.
   function handleTouch(event) {
@@ -29,6 +29,7 @@ function TimerRing({ units, label, color, onPointer, interactive = true, mirrore
       onMoveShouldSetResponder={() => interactive}
       onResponderGrant={handleTouch}
       onResponderMove={handleTouch}
+      onResponderRelease={onRelease}
     >
       <Svg width={SIZE} height={SIZE}>
         <Circle cx={CENTER} cy={CENTER} r={RADIUS} stroke="#e8e0d5" strokeWidth={14} fill="none" />

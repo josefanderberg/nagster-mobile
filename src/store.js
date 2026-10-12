@@ -49,15 +49,26 @@ export async function createTask({ title, durationSeconds }) {
 }
 
 // Bara fälten som går att ändra - resten behåller sitt gamla värde
-export async function updateTask(id, { title, status, snoozeCount }) {
+export async function updateTask(id, { title, status, snoozeCount, durationSeconds }) {
   const tasks = readAll()
   const index = tasks.findIndex((task) => task.id === id)
   if (index === -1) throw new Error('Tjatet finns inte längre')
 
-  const updated = { ...tasks[index], title, status, snoozeCount }
+  const updated = { ...tasks[index], title, status, snoozeCount, durationSeconds }
   tasks[index] = updated
   writeAll(tasks)
   return withUri(updated)
+}
+
+// Ett gammalt tjat som körs igen: nollställt och överst i listan
+export async function restartTask(id, durationSeconds) {
+  const tasks = readAll()
+  const task = tasks.find((item) => item.id === id)
+  if (!task) throw new Error('Tjatet finns inte längre')
+
+  const restarted = { ...task, status: 'pending', snoozeCount: 0, durationSeconds }
+  writeAll([restarted, ...tasks.filter((item) => item.id !== id)])
+  return withUri(restarted)
 }
 
 export async function deleteTask(id) {

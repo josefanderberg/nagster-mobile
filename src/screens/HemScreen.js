@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Notifications from 'expo-notifications'
-import { createTask, getTasks, saveRecording, updateTask } from '../store.js'
+import { createTask, getTasks, restartTask, saveRecording, updateTask } from '../store.js'
 import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
 import { localSoundUri, saveLocalSound, soundName } from '../sounds.js'
 import { clearActive, loadActive, saveActive } from '../activeStore.js'
@@ -17,7 +17,7 @@ import { colors } from '../theme.js'
 
 const SNOOZE_MINUTES = 10
 
-function HemScreen({ navigation }) {
+function HemScreen({ navigation, route }) {
   const [tasks, setTasks] = useState([])
   const [active, setActive] = useState(null) // bara ett tjat åt gången
   const [endsAt, setEndsAt] = useState(null) // fast sluttid, överlever bakgrund
@@ -74,6 +74,18 @@ function HemScreen({ navigation }) {
     clearActive()
   }
 
+  // Gemensamt för nya tjat och omkörda: boka notisen och starta timern.
+  // sound är filnamnet i Library/Sounds, eller null för systemljudet.
+  async function startTimer(task, seconds, sound) {
+    const ends = Date.now() + seconds * 1000
+    if (await ensureNotificationPermission()) await scheduleAlarm(task, ends, sound)
+
+    setActive(task)
+    setEndsAt(ends)
+    saveActive(task.id, ends)
+    await load()
+  }
+
   async function handleAdd(title, seconds, recording) {
     try {
       // Uppgiften skapas först, sedan kopplas inspelningen till den
@@ -81,18 +93,31 @@ function HemScreen({ navigation }) {
       if (recording) task = await saveRecording(task.id, recording)
 
       // Lokal kopia i Library/Sounds gör att notisen tjatar med din röst
-      const sound = recording ? saveLocalSound(task.id, recording) : null
-      const ends = Date.now() + seconds * 1000
-      if (await ensureNotificationPermission()) await scheduleAlarm(task, ends, sound)
-
-      setActive(task)
-      setEndsAt(ends)
-      saveActive(task.id, ends)
-      await load()
+      await startTimer(task, seconds, recording ? saveLocalSound(task.id, recording) : null)
     } catch (err) {
       setError(err.message)
     }
   }
+
+  // Ett gammalt tjat körs igen med samma röst. Notisljudet finns kvar i
+  // Library/Sounds sedan förra gången.
+  async function handleRerun(id, seconds) {
+    try {
+      const task = await restartTask(id, seconds)
+      await startTimer(task, seconds, localSoundUri(id) ? soundName(id) : null)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  // "Kör igen" i detaljvyn hoppar tillbaka hit med tjatet som parameter.
+  // Parametern töms direkt, annars körs tjatet om igen vid nästa besök.
+  const rerun = route.params?.rerun
+  useEffect(() => {
+    if (!rerun) return
+    navigation.setParams({ rerun: undefined })
+    handleRerun(rerun.id, rerun.seconds)
+  }, [rerun])
 
   // Snooze ger tio minuter till - eller samma antal sekunder igen om tjatet
   // sattes i sekunder, så att man kan visa upp det snabbt.
@@ -166,9 +191,13 @@ function HemScreen({ navigation }) {
             task={item}
             isActive={item.id === active?.id}
             onCancel={stopActive}
-            // Ett pågående tjat får inte tas bort - timern spelar fortfarande dess fil
+            // Det pågående tjatet är låst, och bara ett tjat åt gången kan köras
             onPress={() =>
-              navigation.navigate('Detalj', { task: item, canDelete: item.id !== active?.id })
+              navigation.navigate('Detalj', {
+                task: item,
+                isActive: item.id === active?.id,
+                canRerun: !active,
+              })
             }
           />
         )}
