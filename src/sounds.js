@@ -22,7 +22,7 @@ export function saveLocalSound(taskId, recordingUri) {
     dir.create({ intermediates: true, idempotent: true })
     const target = new File(dir, soundName(taskId))
     if (target.exists) target.delete()
-    new File(recordingUri).copy(target)
+    new File(recordingUri).copySync(target)
     return soundName(taskId)
   } catch {
     return null // utan lokal kopia faller notisen tillbaka på systemljudet
@@ -30,7 +30,7 @@ export function saveLocalSound(taskId, recordingUri) {
 }
 
 // Lokala kopians uri för uppspelning i appen (tjatmotorn och vakten).
-// Null om kopian saknas, till exempel för tjat skapade i webbappen.
+// Null om kopian saknas, till exempel för tjat utan inspelning.
 export function localSoundUri(taskId) {
   if (Platform.OS !== 'ios') return null
   try {
