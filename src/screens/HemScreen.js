@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Notifications from 'expo-notifications'
-import { createTask, getTasks, updateTask, uploadRecording } from '../api.js'
+import { createTask, getTasks, saveRecording, updateTask } from '../store.js'
 import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
 import { localSoundUri, saveLocalSound, soundName } from '../sounds.js'
 import { clearActive, loadActive, saveActive } from '../activeStore.js'
@@ -62,7 +62,7 @@ function HemScreen({ navigation }) {
           clearActive()
         }
       })
-      .catch(() => {}) // nås inte servern laddar fokus-effekten om senare
+      .catch(() => {}) // går listan inte att läsa visar fokus-effekten felet
       .finally(() => setRestored(true))
   }, [])
 
@@ -76,10 +76,9 @@ function HemScreen({ navigation }) {
 
   async function handleAdd(title, seconds, recording) {
     try {
-      // Uppgiften skapas först, sedan kopplas inspelningen till den.
-      // Svaret från uppladdningen innehåller sökvägen till ljudet.
+      // Uppgiften skapas först, sedan kopplas inspelningen till den
       let task = await createTask({ title, durationSeconds: seconds })
-      if (recording) task = await uploadRecording(task.id, recording)
+      if (recording) task = await saveRecording(task.id, recording)
 
       // Lokal kopia i Library/Sounds gör att notisen tjatar med din röst
       const sound = recording ? saveLocalSound(task.id, recording) : null

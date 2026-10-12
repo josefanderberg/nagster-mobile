@@ -1,6 +1,6 @@
 import { Alert, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
-import { deleteTask, fileUrl } from '../api.js'
+import { deleteTask } from '../store.js'
 import { deleteLocalSound } from '../sounds.js'
 import { formatDuration } from '../time.js'
 import { colors } from '../theme.js'
@@ -9,7 +9,7 @@ import { colors } from '../theme.js'
 // lyssna på inspelningen igen.
 function DetaljScreen({ route, navigation }) {
   const { task, canDelete } = route.params
-  const player = useAudioPlayer(task.filePath ? fileUrl(task.filePath) : null)
+  const player = useAudioPlayer(task.filePath)
   const status = useAudioPlayerStatus(player)
 
   const isDone = task.status === 'done'

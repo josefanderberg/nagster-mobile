@@ -3,7 +3,6 @@ import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useKeepAwake } from 'expo-keep-awake'
 import TimerRing from './TimerRing.js'
 import { ClockIcon, TimerIcon } from './icons.js'
-import { fileUrl } from '../api.js'
 import { localSoundUri } from '../sounds.js'
 import { playNag } from '../nag.js'
 import { isSecondsMode } from '../timerRing.js'
@@ -37,9 +36,9 @@ function ActiveTimer({ task, endsAt, guard, onDone, onSnooze }) {
     }
   }, [])
 
-  // Den lokala kopian funkar utan server - annars strömmas filen från API:et
+  // Kopian i Library/Sounds finns bara på iOS - annars spelas den sparade inspelningen
   const source = useMemo(
-    () => localSoundUri(task.id) ?? (task.filePath ? fileUrl(task.filePath) : null),
+    () => localSoundUri(task.id) ?? task.filePath,
     [task.id, task.filePath]
   )
 

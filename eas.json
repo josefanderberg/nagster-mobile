@@ -8,12 +8,10 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal",
-      "env": { "EXPO_PUBLIC_API_HOST": "192.168.0.142" }
+      "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true,
-      "env": { "EXPO_PUBLIC_API_HOST": "192.168.0.142" }
+      "autoIncrement": true
     }
   },
   "submit": {
