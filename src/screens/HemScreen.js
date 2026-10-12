@@ -2,13 +2,14 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { Alert, FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Notifications from 'expo-notifications'
-import { createTask, getSettings, getStreak, getTasks, recordCompletion, restartTask, saveRecording, saveSetting, updateTask } from '../store.js'
+import { createTask, deleteTask, getSettings, getStreak, getTasks, recordCompletion, restartTask, saveRecording, saveSetting, updateTask } from '../store.js'
 import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
-import { localSoundUri, saveLocalSound, soundName } from '../sounds.js'
+import { deleteLocalSound, localSoundUri, saveLocalSound, soundName } from '../sounds.js'
 import { loadTimers, saveTimers } from '../activeStore.js'
 import TaskForm from '../components/TaskForm.js'
 import ActiveTimer from '../components/ActiveTimer.js'
 import TaskCard from '../components/TaskCard.js'
+import SwipeRow from '../components/SwipeRow.js'
 import ErrorBanner from '../components/ErrorBanner.js'
 import GuardScreen from '../components/GuardScreen.js'
 import StreakBadge from '../components/StreakBadge.js'
@@ -18,6 +19,8 @@ import { Camera } from 'expo-camera'
 import { useMotionGuard } from '../useMotionGuard.js'
 import { isSecondsMode } from '../timerRing.js'
 import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
+import { previewNag } from '../nag.js'
+import * as Haptics from 'expo-haptics'
 import { File, Paths } from 'expo-file-system'
 import { speakToFile } from '../../modules/tjat-native/index.js'
 import { colors } from '../theme.js'
@@ -154,7 +157,9 @@ function HemScreen({ navigation, route }) {
     if (!timer) return
     const snoozed = { ...timer.task, snoozeCount: timer.task.snoozeCount + 1 }
     const extraSeconds = isSecondsMode(snoozed.durationSeconds) ? snoozed.durationSeconds : SNOOZE_MINUTES * 60
-    const ends = Date.now() + extraSeconds * 1000
+    // Mer tid läggs på det som är kvar - ber man om det innan tiden är ute
+    // ska man inte få mindre tid
+    const ends = Math.max(timer.endsAt, Date.now()) + extraSeconds * 1000
 
     showNaggingIcon() // ikonen blir arg först när man skjuter upp
     if (gotchaOn) setGotcha({ kind: 'snooze', taskId: snoozed.id })
@@ -195,6 +200,24 @@ function HemScreen({ navigation, route }) {
     } catch (err) {
       setError(err.message)
     }
+  }
+
+  // Svep vänster i listan: borta för gott, därför en bekräftelse först
+  function confirmDelete(task) {
+    Alert.alert('Ta bort tjatet?', 'Inspelningen och bilderna raderas också.', [
+      { text: 'Avbryt', style: 'cancel' },
+      {
+        text: 'Ta bort',
+        style: 'destructive',
+        onPress: () =>
+          deleteTask(task.id)
+            .then(() => {
+              deleteLocalSound(task.id) // den lokala notisljudskopian ska också bort
+              return load()
+            })
+            .catch((err) => setError(err.message)),
+      },
+    ])
   }
 
   // Ertappad-kameran slås på och av uppe till höger. Kameran behöver lov
@@ -263,7 +286,19 @@ function HemScreen({ navigation, route }) {
         )}
       </Pressable>
 
-      <GuardScreen phase={guard.phase} onDisarm={guard.disarm} />
+      <GuardScreen
+        phase={guard.phase}
+        onDisarm={guard.disarm}
+        hasTimer={timers.length > 0}
+        onDone={() => {
+          guard.disarm()
+          handleDone()
+        }}
+        onMoreTime={() => {
+          guard.disarm()
+          handleSnooze()
+        }}
+      />
       <GotchaCamera shot={gotcha} onSaved={load} onClose={() => setGotcha(null)} />
 
       <FlatList
@@ -275,14 +310,22 @@ function HemScreen({ navigation, route }) {
           // Pågående tjat är låsta, och högst två kan gå samtidigt
           const isActive = timers.some((timer) => timer.task.id === item.id)
           const canRun = !isActive && timers.length < MAX_TIMERS
+          const run = canRun ? () => handleRerun(item.id, item.durationSeconds) : null
+          // Svep höger kör igen, vänster tar bort - ett pågående tjat går inte att ta bort
           return (
-            <TaskCard
-              task={item}
-              isActive={isActive}
-              onCancel={() => stopTimer(item.id)}
-              onRun={canRun ? () => handleRerun(item.id, item.durationSeconds) : null}
-              onPress={() => navigation.navigate('Detalj', { task: item, isActive, canRerun: canRun })}
-            />
+            <SwipeRow onSwipeRight={run} onSwipeLeft={isActive ? null : () => confirmDelete(item)}>
+              <TaskCard
+                task={item}
+                isActive={isActive}
+                onCancel={() => stopTimer(item.id)}
+                onRun={run}
+                onPreview={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                  previewNag(localSoundUri(item.id) ?? item.filePath, item.title)
+                }}
+                onPress={() => navigation.navigate('Detalj', { task: item, isActive, canRerun: canRun })}
+              />
+            </SwipeRow>
           )
         }}
         ListEmptyComponent={!error && <Text style={styles.empty}>Inget att tjata om än.</Text>}

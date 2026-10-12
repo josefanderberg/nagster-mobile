@@ -31,6 +31,27 @@ export async function playNag(source, snoozeCount) {
   return stop
 }
 
+// Lyssna på ett tjat i listan: en gång, i normal takt. Ett nytt långt tryck
+// avbryter det som spelas. Utan ljudfil läser telefonens röst upp titeln.
+let previewPlayer = null
+
+export function previewNag(source, text) {
+  previewPlayer?.remove()
+  previewPlayer = null
+  Speech.stop()
+  if (!source) return Speech.speak(text)
+
+  const player = createAudioPlayer(source)
+  previewPlayer = player
+  const subscription = player.addListener('playbackStatusUpdate', (status) => {
+    if (!status.didJustFinish) return
+    subscription.remove()
+    player.remove()
+    if (previewPlayer === player) previewPlayer = null
+  })
+  player.play()
+}
+
 // Utan ljudfil (Android, eller om iPhonens röstfil inte gick att skapa) läser
 // telefonens röst upp tjatet direkt - på telefonens språk, och snabbare och
 // ljusare för varje snooze, precis som en inspelning.

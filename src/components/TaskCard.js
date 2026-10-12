@@ -5,7 +5,8 @@ import { colors } from '../theme.js'
 
 // onRun startar tjatet direkt från listan - eller i en inre ring om ett
 // annat redan går. null när det inte går, t.ex. när två redan är igång.
-function TaskCard({ task, isActive = false, onCancel, onRun = null, onPress }) {
+// onPreview spelar upp tjatet när man håller inne på kortet.
+function TaskCard({ task, isActive = false, onCancel, onRun = null, onPreview, onPress }) {
   const isDone = task.status === 'done'
   // T.ex. "Försenad 4m · snoozad 2 ggr" - äldre tjat saknar lateSeconds
   const notes = [
@@ -19,6 +20,8 @@ function TaskCard({ task, isActive = false, onCancel, onRun = null, onPress }) {
     <Pressable
       style={[styles.card, isActive && styles.active]}
       onPress={onPress}
+      onLongPress={onPreview}
+      delayLongPress={350}
     >
       <View style={styles.top}>
         <Text style={[styles.title, isDone && styles.doneText]} numberOfLines={1}>
