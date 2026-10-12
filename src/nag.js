@@ -7,8 +7,11 @@ const MAX_MILLISECONDS = 30_000 // tjatet ger sig efter en halv minut
 export async function playNag(source, snoozeCount) {
   const player = createAudioPlayer(source)
 
-  player.shouldCorrectPitch = false // tonhöjden följer hastigheten
-  player.playbackRate = Math.min(1 + snoozeCount * 0.25, 2.5)
+  // playbackRate går bara att läsa i expo-audio - hastigheten sätts med
+  // setPlaybackRate. Utan tonhöjdskorrigering följer tonhöjden med, så rösten
+  // blir gällare. iOS tar som mest dubbel hastighet.
+  player.shouldCorrectPitch = false
+  player.setPlaybackRate(Math.min(1 + snoozeCount * 0.25, 2))
   player.volume = Math.min(0.6 + snoozeCount * 0.2, 1)
   player.loop = true
   player.play()
