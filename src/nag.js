@@ -1,7 +1,7 @@
 import { createAudioPlayer } from 'expo-audio'
 import * as Speech from 'expo-speech'
 import * as Haptics from 'expo-haptics'
-import { Vibration } from 'react-native'
+import { Platform, Vibration } from 'react-native'
 import { startBuzz, stopBuzz } from '../modules/tjat-native/index.js'
 
 const MAX_MILLISECONDS = 30_000 // tjatet ger sig efter en halv minut
@@ -56,12 +56,16 @@ export async function speakNag(text, snoozeCount) {
   return stop
 }
 
-// Vibrationen trappas upp exponentiellt: glesa lätta stötar som blir allt
-// tätare och hårdare, tills det efter runt tolv sekunder blir ett ihållande
-// surr. Vaktens larm håller på tills mobilen ligger stilla igen.
-const FIRST_PULSE_MS = 1500
-const PULSE_FACTOR = 0.88 // varje paus är 88 % av den förra
+// Vibrationen trappas upp snabbt: en kraftig varningsstöt direkt, sedan
+// hårda stötar som kommer allt tätare, och efter ungefär en sekund full
+// systemvibration i loop. Core Haptics surrar ovanpå som extra - på vissa
+// telefoner känns bara systemvibrationen, så den får aldrig hoppas över.
+// Vaktens larm håller på tills mobilen ligger stilla igen.
+const FIRST_PULSE_MS = 350
+const PULSE_FACTOR = 0.75 // varje paus är tre fjärdedelar av den förra
 const SHORTEST_PULSE_MS = 90
+// iOS tolkar mönstret som pauser mellan vibrationerna, Android som vänta/vibrera
+const VIBRATION_LOOP = Platform.OS === 'ios' ? [0, 1] : [0, 1000]
 
 export function startEscalatingBuzz(maxMs = Infinity) {
   const started = Date.now()
@@ -72,18 +76,13 @@ export function startEscalatingBuzz(maxMs = Infinity) {
     if (Date.now() - started > maxMs) return stop()
     const pause = FIRST_PULSE_MS * PULSE_FACTOR ** pulse
     if (pause < SHORTEST_PULSE_MS) {
-      // Tätare än så känns inte stötarna isär - nu surrar den bara
-      if (!startBuzz()) Vibration.vibrate([0, 1], true)
+      // Tätare än så känns inte stötarna isär - nu vibrerar den bara
+      Vibration.vibrate(VIBRATION_LOOP, true)
+      startBuzz()
       if (maxMs !== Infinity) timer = setTimeout(stop, maxMs - (Date.now() - started))
       return
     }
-    const style =
-      pulse < 5
-        ? Haptics.ImpactFeedbackStyle.Light
-        : pulse < 12
-          ? Haptics.ImpactFeedbackStyle.Medium
-          : Haptics.ImpactFeedbackStyle.Heavy
-    Haptics.impactAsync(style)
+    Haptics.impactAsync(pulse < 2 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Heavy)
     pulse += 1
     timer = setTimeout(next, pause)
   }
@@ -94,6 +93,7 @@ export function startEscalatingBuzz(maxMs = Infinity) {
     Vibration.cancel()
   }
 
-  next()
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+  timer = setTimeout(next, 150) // varningen först, sedan stötarna
   return stop
 }
