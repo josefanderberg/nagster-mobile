@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import * as Notifications from 'expo-notifications'
-import { createTask, getTasks, restartTask, saveRecording, updateTask } from '../store.js'
+import { createTask, getStreak, getTasks, recordCompletion, restartTask, saveRecording, updateTask } from '../store.js'
 import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
 import { localSoundUri, saveLocalSound, soundName } from '../sounds.js'
 import { clearActive, loadActive, saveActive } from '../activeStore.js'
@@ -11,6 +11,7 @@ import ActiveTimer from '../components/ActiveTimer.js'
 import TaskCard from '../components/TaskCard.js'
 import ErrorBanner from '../components/ErrorBanner.js'
 import GuardScreen from '../components/GuardScreen.js'
+import StreakBadge from '../components/StreakBadge.js'
 import { useMotionGuard } from '../useMotionGuard.js'
 import { isSecondsMode } from '../timerRing.js'
 import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
@@ -19,6 +20,7 @@ import { speakToFile } from '../../modules/tjat-native/index.js'
 import { colors } from '../theme.js'
 
 const SNOOZE_MINUTES = 10
+const GRACE_SECONDS = 60 // en minut sent räknas fortfarande som i tid
 
 function HemScreen({ navigation, route }) {
   const [tasks, setTasks] = useState([])
@@ -27,8 +29,9 @@ function HemScreen({ navigation, route }) {
   const [deadline, setDeadline] = useState(null) // första sluttiden, flyttas inte av snooze
   const [restored, setRestored] = useState(false)
   const [error, setError] = useState(null)
+  const [streak, setStreak] = useState(() => getStreak())
   // Vakten bor här och inte i formuläret, så att den lever vidare när ett tjat startas
-  const guard = useMotionGuard(active ? localSoundUri(active.id) : null)
+  const guard = useMotionGuard(active ? localSoundUri(active.id) : null, active ? endsAt : null)
 
   const load = useCallback(() => {
     return getTasks()
@@ -86,7 +89,6 @@ function HemScreen({ navigation, route }) {
     const ends = Date.now() + seconds * 1000
     if (await ensureNotificationPermission()) await scheduleAlarm(task, ends, sound)
 
-    showNaggingIcon()
     setActive(task)
     setEndsAt(ends)
     setDeadline(ends)
@@ -138,6 +140,7 @@ function HemScreen({ navigation, route }) {
     const extraSeconds = isSecondsMode(active.durationSeconds) ? active.durationSeconds : SNOOZE_MINUTES * 60
     const ends = Date.now() + extraSeconds * 1000
 
+    showNaggingIcon() // ikonen blir arg först när man skjuter upp
     setActive(snoozed)
     setEndsAt(ends)
     saveActive(snoozed.id, ends, deadline)
@@ -151,16 +154,21 @@ function HemScreen({ navigation, route }) {
   }
 
   // Klart räknar upp hur många gånger tjatet klarats och sparar hur sent det
-  // blev - räknat från första sluttiden, så varje snooze gör det senare
+  // blev - räknat från första sluttiden, så varje snooze gör det senare.
+  // Bara i tid (med en minuts nåd) ger glad ikon och håller streaken vid liv.
   async function handleDone() {
+    const lateSeconds = Math.max(0, Math.floor((Date.now() - deadline) / 1000))
+    const onTime = lateSeconds <= GRACE_SECONDS
     const finished = {
       ...active,
       status: 'done',
       doneCount: (active.doneCount ?? 0) + 1,
-      lateSeconds: Math.max(0, Math.floor((Date.now() - deadline) / 1000)),
+      lateSeconds,
     }
     stopActive()
-    showDoneIcon()
+    setStreak(recordCompletion(onTime))
+    if (onTime) showDoneIcon()
+    else showNaggingIcon()
     try {
       await updateTask(finished.id, finished)
       await load()
@@ -168,6 +176,11 @@ function HemScreen({ navigation, route }) {
       setError(err.message)
     }
   }
+
+  // Streaken visas uppe till vänster i rubrikraden
+  useLayoutEffect(() => {
+    navigation.setOptions({ headerLeft: () => <StreakBadge count={streak} /> })
+  }, [navigation, streak])
 
   // Knapptryck på notisen: Klart eller Snooza. Hooken fångar även trycket
   // som startade appen kallt, därför väntar vi in återställningen först.

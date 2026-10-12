@@ -106,3 +106,26 @@ export async function saveRecording(id, recordingUri) {
   writeAll(tasks)
   return withUri(task)
 }
+
+// Streaken: hur många tjat i rad som klarats i tid. Den bor i en egen fil,
+// eftersom tjaten bara minns sin senaste omgång.
+const streakFile = new File(Paths.document, 'streak.json')
+
+export function getStreak() {
+  try {
+    return streakFile.exists ? JSON.parse(streakFile.textSync()).current ?? 0 : 0
+  } catch {
+    return 0
+  }
+}
+
+// Klart i tid räknar upp streaken, för sent nollställer den
+export function recordCompletion(onTime) {
+  const next = onTime ? getStreak() + 1 : 0
+  try {
+    streakFile.write(JSON.stringify({ current: next }))
+  } catch {
+    // utan fil börjar streaken om nästa gång - inget att stoppa Klart för
+  }
+  return next
+}

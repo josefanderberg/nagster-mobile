@@ -72,3 +72,14 @@ export function LockIcon({ color }) {
     </Icon>
   )
 }
+
+export function FlameIcon({ color }) {
+  return (
+    <Icon color={color}>
+      <Path
+        d="M12 2.5c.5 3.2 4.5 5 4.5 10a4.5 4.5 0 0 1-9 0c0-2 1-3.5 2.3-4.6.1 1.6.8 2.6 1.9 3C11.2 8.5 11 5.5 12 2.5Z"
+        fill={color}
+      />
+    </Icon>
+  )
+}
