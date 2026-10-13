@@ -9,6 +9,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.josefanderberg.tjat",
+      "appleTeamId": "66D54NKWK7",
       "config": {
         "usesNonExemptEncryption": false
       },
