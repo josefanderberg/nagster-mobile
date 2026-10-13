@@ -24,11 +24,12 @@ import * as Haptics from 'expo-haptics'
 import { File, Paths } from 'expo-file-system'
 import { speakToFile, transcribe } from '../../modules/tjat-native/index.js'
 import { titleFromSpeech } from '../title.js'
-import { colors } from '../theme.js'
+import { colors, shaded } from '../theme.js'
 
 const SNOOZE_MINUTES = 10
 const DEFAULT_TITLE = 'Inspelat tjat' // när inget gick att höra
 const MAX_TIMERS = 2 // ett tjat, plus ett till i en inre ring
+const LIST_HEIGHT = 210 // listans plats på skärmen, som förut
 
 // Det tjat som tar slut först - det är det Klart och Snooza gäller
 function firstToEnd(timers) {
@@ -49,6 +50,13 @@ function HemScreen({ navigation, route }) {
   const [flash, setFlash] = useState({ id: null, key: 0 })
   const flashTask = (id) => setFlash((previous) => ({ id, key: previous.key + 1 }))
   const current = firstToEnd(timers)
+  const [focus, setFocus] = useState(false) // tiden är ute - bara Klart och Snooza gäller
+  // Luckan mellan timern och listan halveras genom att listan sträcker sig
+  // upp i luckans nedre halva. Timern centreras som förut och står kvar.
+  const [heroHeight, setHeroHeight] = useState(0)
+  const [contentHeight, setContentHeight] = useState(0)
+  const [listHeight, setListHeight] = useState(0)
+  const lift = Math.max(0, (heroHeight - contentHeight) / 4)
   // Vakten bor här och inte i formuläret, så att den lever vidare när ett tjat startas
   const guard = useMotionGuard(current ? localSoundUri(current.task.id) : null, current?.endsAt ?? null)
 
@@ -260,9 +268,11 @@ function HemScreen({ navigation, route }) {
     return () => clearTimeout(timeout)
   }, [timers, streak])
 
-  // Streaken uppe till vänster, kameran uppe till höger
+  // Streaken uppe till vänster, kameran uppe till höger. Rubrikraden
+  // mörknar med resten när tiden är ute.
   useLayoutEffect(() => {
     navigation.setOptions({
+      headerStyle: { backgroundColor: focus ? shaded(colors.bg) : colors.bg },
       headerLeft: () => <StreakBadge count={streak} />,
       headerRight: () => (
         <Pressable
@@ -274,7 +284,7 @@ function HemScreen({ navigation, route }) {
         </Pressable>
       ),
     })
-  }, [navigation, streak, gotchaOn])
+  }, [navigation, streak, gotchaOn, focus])
 
   // Knapptryck på notisen: Klart eller Snooza. Hooken fångar även trycket
   // som startade appen kallt, därför väntar vi in återställningen först.
@@ -298,19 +308,35 @@ function HemScreen({ navigation, route }) {
     <View style={styles.screen}>
       <ErrorBanner message={error} onRetry={load} />
 
-      {/* Tryck utanför textrutan fäller ner tangentbordet, så Starta syns igen */}
-      <Pressable style={styles.hero} onPress={Keyboard.dismiss} accessible={false}>
-        {timers.length > 0 ? (
-          <ActiveTimer timers={timers} current={current} guard={guard} onDone={() => handleDone()} onSnooze={() => handleSnooze()} />
-        ) : (
-          <TaskForm onAdd={handleAdd} onError={setError} guard={guard} />
-        )}
+      {/* Tryck utanför textrutan fäller ner tangentbordet, så Starta syns igen.
+          När tiden är ute ligger timerns skugga över listan också. */}
+      <Pressable
+        style={[styles.hero, focus && styles.heroOnTop]}
+        onPress={Keyboard.dismiss}
+        onLayout={(event) => setHeroHeight(event.nativeEvent.layout.height)}
+        accessible={false}
+      >
+        <View onLayout={(event) => setContentHeight(event.nativeEvent.layout.height)}>
+          {timers.length > 0 ? (
+            <ActiveTimer
+              timers={timers}
+              current={current}
+              guard={guard}
+              onDone={() => handleDone()}
+              onSnooze={() => handleSnooze()}
+              onFocusChange={setFocus}
+            />
+          ) : (
+            <TaskForm onAdd={handleAdd} onError={setError} guard={guard} />
+          )}
+        </View>
       </Pressable>
 
       <GuardScreen
         phase={guard.phase}
         onDisarm={guard.disarm}
         hasTimer={timers.length > 0}
+        timer={current}
         onDone={() => {
           guard.disarm()
           handleDone()
@@ -322,36 +348,40 @@ function HemScreen({ navigation, route }) {
       />
       <GotchaCamera shot={gotcha} onSaved={load} onClose={() => setGotcha(null)} />
 
-      <FlatList
-        style={styles.history}
-        contentContainerStyle={styles.historyContent}
-        data={tasks}
-        keyExtractor={(task) => String(task.id)}
-        renderItem={({ item }) => {
-          // Pågående tjat är låsta, och högst två kan gå samtidigt
-          const isActive = timers.some((timer) => timer.task.id === item.id)
-          const canRun = !isActive && timers.length < MAX_TIMERS
-          const run = canRun ? () => handleRerun(item.id, item.durationSeconds) : null
-          // Svep höger kör igen, vänster tar bort - ett pågående tjat går inte att ta bort
-          return (
-            <SwipeRow onSwipeRight={run} onSwipeLeft={isActive ? null : () => confirmDelete(item)}>
-              <TaskCard
-                task={item}
-                isActive={isActive}
-                onCancel={() => stopTimer(item.id)}
-                onRun={run}
-                onPreview={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-                  previewNag(localSoundUri(item.id) ?? item.filePath, item.title)
-                }}
-                onPress={() => navigation.navigate('Detalj', { task: item, isActive, canRerun: canRun })}
-                flashKey={flash.id === item.id ? flash.key : 0}
-              />
-            </SwipeRow>
-          )
-        }}
-        ListEmptyComponent={!error && <Text style={styles.empty}>Inget att tjata om än.</Text>}
-      />
+      {/* Listan tar samma plats som förut, men ritas en bit högre upp */}
+      <View style={{ height: Math.min(listHeight, LIST_HEIGHT) }}>
+        <FlatList
+          style={[styles.history, { top: -lift }]}
+          contentContainerStyle={styles.historyContent}
+          onContentSizeChange={(_, height) => setListHeight(height)}
+          data={tasks}
+          keyExtractor={(task) => String(task.id)}
+          renderItem={({ item }) => {
+            // Pågående tjat är låsta, och högst två kan gå samtidigt
+            const isActive = timers.some((timer) => timer.task.id === item.id)
+            const canRun = !isActive && timers.length < MAX_TIMERS
+            const run = canRun ? () => handleRerun(item.id, item.durationSeconds) : null
+            // Svep höger kör igen, vänster tar bort - ett pågående tjat går inte att ta bort
+            return (
+              <SwipeRow onSwipeRight={run} onSwipeLeft={isActive ? null : () => confirmDelete(item)}>
+                <TaskCard
+                  task={item}
+                  isActive={isActive}
+                  onCancel={() => stopTimer(item.id)}
+                  onRun={run}
+                  onPreview={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+                    previewNag(localSoundUri(item.id) ?? item.filePath, item.title)
+                  }}
+                  onPress={() => navigation.navigate('Detalj', { task: item, isActive, canRerun: canRun })}
+                  flashKey={flash.id === item.id ? flash.key : 0}
+                />
+              </SwipeRow>
+            )
+          }}
+          ListEmptyComponent={!error && <Text style={styles.empty}>Inget att tjata om än.</Text>}
+        />
+      </View>
     </View>
   )
 }
@@ -359,7 +389,8 @@ function HemScreen({ navigation, route }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20 },
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  history: { flexGrow: 0, maxHeight: 210 },
+  heroOnTop: { zIndex: 1 },
+  history: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   historyContent: { gap: 10, paddingBottom: 16 },
   empty: { textAlign: 'center', color: colors.muted, paddingVertical: 24 },
 })

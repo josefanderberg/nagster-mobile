@@ -3,6 +3,7 @@ import { Animated, Easing, Modal, Pressable, StyleSheet, Text, useWindowDimensio
 import { StatusBar } from 'expo-status-bar'
 import { useHoldToConfirm } from '../useHoldToConfirm.js'
 import { SUSPICION_MS } from '../useMotionGuard.js'
+import { timerLabel, timerState } from '../time.js'
 
 const BLACK = '#000000'
 const DIM = '#1c1c1e'
@@ -11,6 +12,7 @@ const ORANGE = '#f08c00'
 const RED = '#c1121f'
 const GREEN = '#2e9e5b'
 const WHITE = '#ffffff'
+const FAINT = '#5a5a5e' // syns i mörkret utan att lysa upp rummet
 const HINT_MS = 2500
 
 // Vakten blir allt mer misstänksam: först kollar den bara läget, sedan
@@ -44,12 +46,31 @@ function AlarmContent({ color, stage, hasTimer, onDone, onHoldStart, onHoldEnd }
   )
 }
 
+// Tiden som är kvar på det tjat som tar slut först, svagt på den svarta
+// skärmen - så att man vet hur länge man ska låta bli mobilen
+function TimeLeft({ timer }) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    const interval = setInterval(() => setNow(Date.now()), 250)
+    return () => clearInterval(interval)
+  }, [])
+  const state = timerState(timer, now)
+  return (
+    <>
+      <Text style={styles.timeLeft}>{timerLabel(state)}</Text>
+      <Text style={styles.timeTitle} numberOfLines={1}>
+        {timer.task.title}
+      </Text>
+    </>
+  )
+}
+
 // Skärmen medan vakten är låst: svart normalt, färg vid larm. Ett enda modal-
 // fönster med flera lägen, eftersom iOS kan krångla när en modal stängs
 // samtidigt som en annan öppnas. Den svarta skärmen stängs av genom att hålla
 // inne i tre sekunder var som helst. Vid larm finns knappar: Klar, och håll
 // för mer tid (eller för att stänga av när inget tjat går).
-function GuardScreen({ phase, onDisarm, hasTimer, onDone, onMoreTime }) {
+function GuardScreen({ phase, onDisarm, hasTimer, timer, onDone, onMoreTime }) {
   const { width, height } = useWindowDimensions()
   // Vad hållandet gör avgörs när det är klart - därför en ref
   const holdAction = useRef(onDisarm)
@@ -141,11 +162,10 @@ function GuardScreen({ phase, onDisarm, hasTimer, onDone, onMoreTime }) {
         ) : (
           <>
             <Animated.View pointerEvents="none" style={[styles.fill, { height: fillHeight, backgroundColor: DIM }]} />
-            {hint && (
-              <View pointerEvents="none" style={[styles.layer, styles.center, { height }]}>
-                <Text style={styles.hint}>Håll inne i 3 sekunder för att låsa upp</Text>
-              </View>
-            )}
+            <View pointerEvents="none" style={[styles.layer, styles.center, { height }]}>
+              {timer && <TimeLeft timer={timer} />}
+              {hint && <Text style={styles.hint}>Håll inne i 3 sekunder för att låsa upp</Text>}
+            </View>
           </>
         )}
       </Pressable>
@@ -166,7 +186,9 @@ const styles = StyleSheet.create({
   doneText: { color: GREEN, fontSize: 17, fontWeight: '800' },
   hold: { borderWidth: 2, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 22 },
   holdText: { fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  hint: { color: '#555', fontSize: 15 },
+  hint: { color: '#555', fontSize: 15, marginTop: 24 },
+  timeLeft: { color: FAINT, fontSize: 72, fontWeight: '200', fontVariant: ['tabular-nums'] },
+  timeTitle: { color: FAINT, fontSize: 15, marginTop: 4, paddingHorizontal: 40 },
 })
 
 export default GuardScreen

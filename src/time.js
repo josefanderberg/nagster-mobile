@@ -31,3 +31,23 @@ export function clockTime(seconds) {
     minute: '2-digit',
   })
 }
+
+// Var ett pågående tjat står just nu. Tiden härleds ur en fast sluttid i
+// stället för att räknas ner, så att den stämmer även efter en stund i
+// bakgrunden.
+export function timerState(timer, now) {
+  const secondsLeft = Math.max(0, Math.ceil((timer.endsAt - now) / 1000))
+  return {
+    secondsLeft,
+    expired: secondsLeft === 0,
+    // Förseningen räknas från första sluttiden - en snooze ger mer tid men
+    // tar inte bort stämpeln
+    late: now >= timer.deadline,
+    lateSeconds: Math.max(0, Math.floor((now - timer.deadline) / 1000)),
+  }
+}
+
+// Texten i timerns mitt: tid kvar, eller hur sent det är när tiden är ute
+export function timerLabel(state) {
+  return state.expired ? `+${formatCountdown(state.lateSeconds)}` : formatCountdown(state.secondsLeft)
+}

@@ -36,10 +36,10 @@ För TestFlight: `eas build --profile production --platform ios --auto-submit`.
 
 ## Så används den
 
-- **Hem:** dra i ringen för att välja tid, spela in ett tjat med mikrofonen och tryck Starta. Listan under visar alla tjat, och knappen på varje kort kör tjatet igen. Går redan ett tjat hamnar det nya i en inre ring - högst två samtidigt, och Klart och Snooza gäller det som tar slut först.
+- **Hem:** dra i ringen för att välja tid, spela in ett tjat med mikrofonen och tryck Starta. Listan under visar alla tjat, och knappen på varje kort kör tjatet igen. Går redan ett tjat hamnar det nya i en inre ring - högst två samtidigt, och Klart och Snooza gäller det som tar slut först. När tiden är ute mörknar allt utom **Klart** och **Snooza**.
 - **Detalj:** tryck på ett tjat i listan för att se det och lyssna på inspelningen. Tryck på tiden för att ändra den, och på **Kör igen** för att starta tjatet en gång till med samma röst.
 - **Kameran uppe till höger i rubriken** slår på ertappad-kameran: frontkameran tar en bild med stämpel när du snoozar eller klarar ett tjat. Bilderna syns som bevis i detaljvyn. **Lågan uppe till vänster** är din streak, tjat i rad klarade i tid.
-- **Låset uppe till höger** slår på rörelsevakten. Lägg telefonen på bordet, skärmen blir svart och plockar du upp den blir den röd och vibrerar. Håll inne i tre sekunder för att stänga av.
+- **Låset uppe till höger** slår på rörelsevakten. Lägg telefonen på bordet, skärmen blir svart och visar svagt hur lång tid som är kvar. Plockar du upp den blir den röd och vibrerar. Håll inne i tre sekunder för att stänga av.
 
 ## Tekniska val
 

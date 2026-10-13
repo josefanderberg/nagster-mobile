@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { AppState, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Animated, AppState, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useKeepAwake } from 'expo-keep-awake'
 import TimerRing from './TimerRing.js'
 import HoloText from './HoloText.js'
@@ -8,25 +8,11 @@ import { ClockIcon, TimerIcon } from './icons.js'
 import { localSoundUri } from '../sounds.js'
 import { playNag, speakNag } from '../nag.js'
 import { isSecondsMode, SIZE } from '../timerRing.js'
-import { clockTime, formatCountdown } from '../time.js'
-import { colors } from '../theme.js'
+import { clockTime, timerLabel, timerState } from '../time.js'
+import { colors, SHADE } from '../theme.js'
 
 const INNER_SCALE = 0.64 // den inre ringen får plats innanför den yttre
 const INNER_GREEN = '#3fb6a8' // lite blågrönare, så att ringarna går att skilja åt
-
-// Var en timer står just nu. Tiden härleds ur en fast sluttid i stället för
-// att räknas ner, så att den stämmer även efter en stund i bakgrunden.
-function timerState(timer, now) {
-  const secondsLeft = Math.max(0, Math.ceil((timer.endsAt - now) / 1000))
-  return {
-    secondsLeft,
-    expired: secondsLeft === 0,
-    // Förseningen räknas från första sluttiden - en snooze ger mer tid men
-    // tar inte bort stämpeln
-    late: now >= timer.deadline,
-    lateSeconds: Math.max(0, Math.floor((now - timer.deadline) / 1000)),
-  }
-}
 
 // En ring per tjat: grön nedräkning, eller röd uppräkning när tiden är ute
 function Ring({ timer, state, label, green }) {
@@ -46,7 +32,9 @@ function Ring({ timer, state, label, green }) {
 // Tjaten som är igång: ringarna räknar ner och går inte att dra i. Ett varv
 // är en minut, så sekundvisaren syns tydligt. Ett andra tjat syns som en
 // inre ring. Klart och Snooza gäller det som tar slut först (current).
-function ActiveTimer({ timers, current, guard, onDone, onSnooze }) {
+// När tiden är ute mörknar allt utom knapparna - då är det bara de som
+// gäller. onFocusChange berättar det för skärmen, som mörkar resten.
+function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }) {
   useKeepAwake() // skärmen får inte somna - då slutar accelerometern mäta
 
   const [now, setNow] = useState(() => Date.now())
@@ -70,6 +58,13 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze }) {
       subscription.remove()
     }
   }, [])
+
+  const shade = useRef(new Animated.Value(0)).current
+  useEffect(() => {
+    Animated.timing(shade, { toValue: state.expired ? SHADE : 0, duration: 250, useNativeDriver: true }).start()
+    onFocusChange(state.expired)
+  }, [state.expired])
+  useEffect(() => () => onFocusChange(false), [])
 
   // Kopian i Library/Sounds finns bara på iOS - annars spelas den sparade inspelningen
   const source = useMemo(() => localSoundUri(task.id) ?? task.filePath, [task.id, task.filePath])
@@ -104,11 +99,7 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze }) {
   }
 
   // Texten i mitten gäller alltid tjatet som tar slut först
-  const centerLabel = state.expired
-    ? `+${formatCountdown(state.lateSeconds)}`
-    : showClock
-      ? clockTime(state.secondsLeft)
-      : formatCountdown(state.secondsLeft)
+  const centerLabel = showClock && !state.expired ? clockTime(state.secondsLeft) : timerLabel(state)
 
   const arming = guard.phase === 'arming'
   const otherState = other && timerState(other, now)
@@ -158,8 +149,7 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze }) {
             </Text>
             {other && (
               <Text style={styles.titleNext} numberOfLines={1}>
-                sedan: {other.task.title} ·{' '}
-                {otherState.expired ? `+${formatCountdown(otherState.lateSeconds)}` : formatCountdown(otherState.secondsLeft)}
+                sedan: {other.task.title} · {timerLabel(otherState)}
               </Text>
             )}
           </>
@@ -172,6 +162,9 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze }) {
           <HoloText text={`Klarat ${task.doneCount} ggr`} seed={task.id} />
         </View>
       )}
+
+      {/* Skuggan ligger över allt som ritats före den, men under knapparna */}
+      <Animated.View pointerEvents={state.expired ? 'auto' : 'none'} style={[styles.shade, { opacity: shade }]} />
 
       {/* Klart går alltid - även för sent. Snooza först när tiden är ute. */}
       <View style={styles.buttons}>
@@ -190,6 +183,8 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze }) {
 
 const styles = StyleSheet.create({
   wrapper: { alignItems: 'center', gap: 16 },
+  // Långt utanför ringen åt alla håll, så att den täcker hela skärmen
+  shade: { position: 'absolute', top: -2000, bottom: -2000, left: -1000, right: -1000, backgroundColor: colors.text },
   cornerBtn: {
     position: 'absolute',
     top: -4,

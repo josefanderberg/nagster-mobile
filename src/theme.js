@@ -11,6 +11,20 @@ export const colors = {
   border: '#e8e0d5',
 }
 
+// Hur mörk skuggan blir när tiden är ute och bara Klart och Snooza gäller
+export const SHADE = 0.45
+
+// Färgen man får med skuggan (colors.text) ovanpå en annan färg - för det
+// som inte kan ligga under själva skuggan, som rubrikraden
+export function shaded(hex) {
+  const channel = (offset) => {
+    const base = parseInt(hex.slice(offset, offset + 2), 16)
+    const shadow = parseInt(colors.text.slice(offset, offset + 2), 16)
+    return Math.round(base * (1 - SHADE) + shadow * SHADE)
+  }
+  return `rgb(${channel(1)}, ${channel(3)}, ${channel(5)})`
+}
+
 // Blandar en färg mot vitt. Webben gör detta med CSS color-mix, men den
 // funktionen finns inte i React Native - så vi räknar ut den själva.
 export function mixWithWhite(hex, strength) {
