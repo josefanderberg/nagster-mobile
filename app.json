@@ -68,6 +68,12 @@
           "recordAudioAndroid": false,
           "barcodeScannerEnabled": false
         }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Tjat känner av om du plockar upp mobilen när vakten är på, så att den kan larma."
+        }
       ]
     ],
     "extra": {
