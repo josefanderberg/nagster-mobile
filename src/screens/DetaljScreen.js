@@ -5,6 +5,7 @@ import { deleteTask, updateTask } from '../store.js'
 import { deleteLocalSound } from '../sounds.js'
 import TimerRing from '../components/TimerRing.js'
 import HoloText from '../components/HoloText.js'
+import PhotoViewer from '../components/PhotoViewer.js'
 import { turnDial } from '../dial.js'
 import { isSecondsMode, ringUnits } from '../timerRing.js'
 import { formatDuration } from '../time.js'
@@ -21,6 +22,8 @@ function DetaljScreen({ route, navigation }) {
   const status = useAudioPlayerStatus(player)
   const [seconds, setSeconds] = useState(task.durationSeconds)
   const [editingTime, setEditingTime] = useState(false)
+  const [viewing, setViewing] = useState(null) // vilken bild som visas stort, eller null
+  const photos = [...(task.photos ?? [])].reverse() // nyast först
   // Det senaste värdet, så att sparandet när fingret släpper inte missar sista steget
   const latestSeconds = useRef(seconds)
 
@@ -143,17 +146,20 @@ function DetaljScreen({ route, navigation }) {
             Bevis <Text style={styles.proofLocal}>· bara i din telefon</Text>
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.proofRow}>
-            {[...task.photos].reverse().map((photo) => (
-              <View key={photo.name}>
+            {/* Tryck på en bild för att se den stort och bläddra mellan alla */}
+            {photos.map((photo, index) => (
+              <Pressable key={photo.name} onPress={() => setViewing(index)}>
                 <Image source={{ uri: photo.uri }} style={styles.photo} />
                 <Text style={[styles.photoLabel, photo.kind === 'snooze' && styles.photoCaught]}>
                   {PHOTO_LABELS[photo.kind] ?? 'Klarat'}
                 </Text>
-              </View>
+              </Pressable>
             ))}
           </ScrollView>
         </View>
       )}
+
+      <PhotoViewer photos={photos} startIndex={viewing} onClose={() => setViewing(null)} />
 
       {!editingTime && !isActive && (
         <Pressable style={styles.deleteBtn} onPress={confirmDelete}>
