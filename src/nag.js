@@ -77,44 +77,20 @@ export async function speakNag(text, snoozeCount) {
   return stop
 }
 
-// Vibrationen trappas upp snabbt: en kraftig varningsstöt direkt, sedan
-// hårda stötar som kommer allt tätare, och efter ungefär en sekund full
-// systemvibration i loop. Core Haptics surrar ovanpå som extra - på vissa
-// telefoner känns bara systemvibrationen, så den får aldrig hoppas över.
-// Vaktens larm håller på tills mobilen ligger stilla igen.
-const FIRST_PULSE_MS = 350
-const PULSE_FACTOR = 0.75 // varje paus är tre fjärdedelar av den förra
-const SHORTEST_PULSE_MS = 90
+// Vaktens larm vibrerar för fullt direkt: en kraftig varningsstöt och sedan
+// systemvibrationen i loop, med Core Haptics surr ovanpå. På vissa telefoner
+// känns bara systemvibrationen, så den får aldrig hoppas över. Larmet håller
+// på tills mobilen ligger stilla igen.
 // iOS tolkar mönstret som pauser mellan vibrationerna, Android som vänta/vibrera
 const VIBRATION_LOOP = Platform.OS === 'ios' ? [0, 1] : [0, 1000]
 
-export function startEscalatingBuzz(maxMs = Infinity) {
-  const started = Date.now()
-  let pulse = 0
-  let timer = null
+export function startAlarmBuzz() {
+  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
+  Vibration.vibrate(VIBRATION_LOOP, true)
+  startBuzz()
 
-  function next() {
-    if (Date.now() - started > maxMs) return stop()
-    const pause = FIRST_PULSE_MS * PULSE_FACTOR ** pulse
-    if (pause < SHORTEST_PULSE_MS) {
-      // Tätare än så känns inte stötarna isär - nu vibrerar den bara
-      Vibration.vibrate(VIBRATION_LOOP, true)
-      startBuzz()
-      if (maxMs !== Infinity) timer = setTimeout(stop, maxMs - (Date.now() - started))
-      return
-    }
-    Haptics.impactAsync(pulse < 2 ? Haptics.ImpactFeedbackStyle.Medium : Haptics.ImpactFeedbackStyle.Heavy)
-    pulse += 1
-    timer = setTimeout(next, pause)
-  }
-
-  function stop() {
-    clearTimeout(timer)
+  return function stop() {
     stopBuzz()
     Vibration.cancel()
   }
-
-  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
-  timer = setTimeout(next, 150) // varningen först, sedan stötarna
-  return stop
 }

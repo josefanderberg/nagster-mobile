@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Accelerometer } from 'expo-sensors'
+import { Accelerometer, Gyroscope } from 'expo-sensors'
 import { setAudioModeAsync } from 'expo-audio'
-import { playNag, startEscalatingBuzz } from './nag.js'
+import { playNag, startAlarmBuzz } from './nag.js'
 
 export const DISARM_HOLD_MS = 3000
 export const SUSPICION_MS = 3000 // blått -> orange -> rött innan rösten drar igång
@@ -9,10 +9,12 @@ export const SUSPICION_MS = 3000 // blått -> orange -> rött innan rösten drar
 const ARM_MS = 2250 // 3:an blinkar förbi, sen en sekund var på 2 och 1
 const TICK_MS = 100
 const SAMPLE_MS = 100
-const MOVE_THRESHOLD = 0.18 // rörelse i g som räknas som upplockad
-const RETURN_THRESHOLD = 0.08 // snävare, annars slår larmet av och på i kanten
+const MOVE_THRESHOLD = 0.1 // lutning i g som räknas som upplockad, ungefär fem grader
+const TURN_THRESHOLD = 0.6 // vridning i rad/s - man vrider alltid mobilen lite när man tar i den
+const RETURN_THRESHOLD = 0.08 // tillbaka i samma läge som förut
 const STILL_THRESHOLD = 0.03
-const STILL_READINGS = 3
+const STILL_READINGS = 10 // en hel sekund stilla innan larmet tystnar
+const MIN_ALARM_MS = 2500 // larmet hinner kännas ordentligt även om man släpper direkt
 const FLAT = 0.9 // tyngdkraften drar rakt genom skärmen
 const EARLY_MS = 1000 // så här tidigt före sluttiden räknas upplockningen som i tid
 
@@ -32,6 +34,7 @@ export function useMotionGuard(alarmSoundUri, endsAt) {
   const [armLeft, setArmLeft] = useState(Math.ceil(ARM_MS / 1000))
   const resting = useRef(null)
   const armEndsAt = useRef(0)
+  const alarmSince = useRef(0)
   // Ref i stället för beroende, så att accelerometern inte startas om vid snooze
   const timerEndsAt = useRef(endsAt)
   timerEndsAt.current = endsAt
@@ -48,15 +51,26 @@ export function useMotionGuard(alarmSoundUri, endsAt) {
     return () => clearInterval(interval)
   }, [phase])
 
-  // Mäter även under larmet, för att märka när telefonen lagts tillbaka
+  // Mäter även under larmet, för att märka när telefonen lagts tillbaka.
+  // Accelerometern känner lutning och gyroskopet vridning - tillsammans
+  // märker de nästan alla sätt att ta i mobilen.
   useEffect(() => {
     if (phase !== 'watching' && phase !== 'alarm') return
     Accelerometer.setUpdateInterval(SAMPLE_MS)
+    Gyroscope.setUpdateInterval(SAMPLE_MS)
 
     let previous = null
     let stillCount = 0
 
-    const subscription = Accelerometer.addListener((reading) => {
+    // Upplockad: tiden ute släpper vakten, annars larm
+    function pickedUp() {
+      const ends = timerEndsAt.current
+      if (ends && Date.now() >= ends - EARLY_MS) return setPhase('off')
+      alarmSince.current = Date.now()
+      setPhase('alarm')
+    }
+
+    const tilt = Accelerometer.addListener((reading) => {
       const jitter = previous ? distance(reading, previous) : 0
       previous = reading
       stillCount = jitter < STILL_THRESHOLD ? stillCount + 1 : 0
@@ -66,35 +80,37 @@ export function useMotionGuard(alarmSoundUri, endsAt) {
           resting.current = reading
           return
         }
-        if (distance(reading, resting.current) > MOVE_THRESHOLD) {
-          const ends = timerEndsAt.current
-          setPhase(ends && Date.now() >= ends - EARLY_MS ? 'off' : 'alarm')
-        }
+        if (distance(reading, resting.current) > MOVE_THRESHOLD) pickedUp()
         return
       }
 
-      // Tillbaka i samma läge som förut, tyst direkt
+      // Larmet får alltid hålla på en stund, och tystnar först när mobilen
+      // legat stilla en sekund - i samma läge som förut eller platt i ett nytt
+      if (Date.now() - alarmSince.current < MIN_ALARM_MS || stillCount < STILL_READINGS) return
       if (distance(reading, resting.current) < RETURN_THRESHOLD) {
         setPhase('watching')
-        return
-      }
-
-      // Nedlagd i ett nytt läge: stilla och platt en stund ger nytt viloläge
-      if (stillCount >= STILL_READINGS && Math.abs(reading.z) > FLAT) {
+      } else if (Math.abs(reading.z) > FLAT) {
         resting.current = reading
         setPhase('watching')
       }
     })
 
-    return () => subscription.remove()
+    const turn = Gyroscope.addListener(({ x, y, z }) => {
+      if (phase === 'watching' && resting.current && Math.hypot(x, y, z) > TURN_THRESHOLD) pickedUp()
+    })
+
+    return () => {
+      tilt.remove()
+      turn.remove()
+    }
   }, [phase])
 
-  // Vibrationen trappas upp exponentiellt tills mobilen ligger stilla igen.
+  // Vibrationen går för fullt tills mobilen ligger stilla igen.
   // Finns en inspelning skäller rösten med på maxvolym, även med ljudlös-
   // knappen på.
   useEffect(() => {
     if (phase !== 'alarm') return
-    const stopBuzzing = startEscalatingBuzz()
+    const stopBuzzing = startAlarmBuzz()
 
     let stopVoice = null
     let cancelled = false

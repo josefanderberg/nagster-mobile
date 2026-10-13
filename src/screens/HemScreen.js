@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Alert, Animated, FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Animated, AppState, FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
 import { StatusBar } from 'expo-status-bar'
 import * as Notifications from 'expo-notifications'
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake'
 import { breakStreak, createTask, deleteTask, getSettings, getStreak, getTasks, recordCompletion, restartTask, saveRecording, saveSetting, updateTask } from '../store.js'
 import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
 import { deleteLocalSound, localSoundUri, saveLocalSound, soundName } from '../sounds.js'
@@ -18,6 +19,7 @@ import GotchaCamera from '../components/GotchaCamera.js'
 import { CameraIcon } from '../components/icons.js'
 import { Camera } from 'expo-camera'
 import { useMotionGuard } from '../useMotionGuard.js'
+import { startAwayAlarm, stopAwayAlarm } from '../awayAlarm.js'
 import { DEFAULT_SNOOZE_SECONDS } from '../snooze.js'
 import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
 import { previewNag } from '../nag.js'
@@ -63,6 +65,28 @@ function HemScreen({ navigation, route }) {
   const lift = Math.max(0, (heroHeight - contentHeight) / 4)
   // Vakten bor här och inte i formuläret, så att den lever vidare när ett tjat startas
   const guard = useMotionGuard(current ? localSoundUri(current.task.id) : null, current?.endsAt ?? null)
+
+  // Med vakten på får skärmen inte somna - då pausar iOS appen och vakten
+  // slutar känna. Lämnar man appen ändå öser den på med notiser tills man
+  // kommer tillbaka.
+  const guardOn = guard.isOn
+  const awaySound = current && localSoundUri(current.task.id) ? soundName(current.task.id) : null
+  const awaySoundRef = useRef(awaySound)
+  awaySoundRef.current = awaySound
+  useEffect(() => {
+    if (!guardOn) return
+    activateKeepAwakeAsync('vakt').catch(() => {})
+    ensureNotificationPermission() // notiserna är det enda som når en när appen är pausad
+    const subscription = AppState.addEventListener('change', (appState) => {
+      if (appState === 'background') startAwayAlarm(awaySoundRef.current)
+      else if (appState === 'active') stopAwayAlarm()
+    })
+    return () => {
+      subscription.remove()
+      deactivateKeepAwake('vakt').catch(() => {})
+      stopAwayAlarm()
+    }
+  }, [guardOn])
 
   // Ändrar listan och sparar den, så att en dödad app kan ta upp tråden
   function updateTimers(change) {
