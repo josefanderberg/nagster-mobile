@@ -1,6 +1,12 @@
 {
-  "platforms": ["apple"],
+  "platforms": [
+    "apple"
+  ],
   "apple": {
-    "modules": ["TjatHaptikModule", "TjatTalModule"]
+    "modules": [
+      "TjatHaptikModule",
+      "TjatTalModule",
+      "TjatLyssnaModule"
+    ]
   }
 }

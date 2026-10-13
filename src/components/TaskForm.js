@@ -11,7 +11,6 @@ import { ClockIcon, PencilIcon, TimerIcon } from './icons.js'
 import GuardButton from './GuardButton.js'
 
 const DEFAULT_SECONDS = 10
-const DEFAULT_TITLE = 'Inspelat tjat'
 
 function TaskForm({ onAdd, onError, guard }) {
   const [title, setTitle] = useState('')
@@ -39,7 +38,8 @@ function TaskForm({ onAdd, onError, guard }) {
     try {
       // Pågår en inspelning stoppas den här, så att tjatet kommer med
       const audio = await recorder.stop()
-      await onAdd(title.trim() || DEFAULT_TITLE, seconds, audio)
+      // Tom titel går bra - då gör Hem en titel av det som sades in
+      await onAdd(title.trim(), seconds, audio)
       setTitle('')
       setEditing(false)
       recorder.reset()
