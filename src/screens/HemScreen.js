@@ -22,11 +22,12 @@ import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
 import { previewNag } from '../nag.js'
 import * as Haptics from 'expo-haptics'
 import { File, Paths } from 'expo-file-system'
-import { speakToFile } from '../../modules/tjat-native/index.js'
+import { speakToFile, transcribe } from '../../modules/tjat-native/index.js'
+import { titleFromSpeech } from '../title.js'
 import { colors } from '../theme.js'
 
 const SNOOZE_MINUTES = 10
-const GRACE_SECONDS = 60 // en minut sent räknas fortfarande som i tid
+const DEFAULT_TITLE = 'Inspelat tjat' // när inget gick att höra
 const MAX_TIMERS = 2 // ett tjat, plus ett till i en inre ring
 
 // Det tjat som tar slut först - det är det Klart och Snooza gäller
@@ -116,8 +117,13 @@ function HemScreen({ navigation, route }) {
     flashTask(task.id)
   }
 
-  async function handleAdd(title, seconds, recording) {
+  async function handleAdd(typedTitle, seconds, recording) {
     try {
+      // Utan skriven titel lyssnar telefonen på inspelningen och gör en titel
+      // av det viktiga - så att inte alla tjat heter "Inspelat tjat"
+      const heard = !typedTitle && recording ? titleFromSpeech(await transcribe(recording)) : null
+      const title = typedTitle || heard || DEFAULT_TITLE
+
       // Uppgiften skapas först, sedan kopplas inspelningen till den
       let task = await createTask({ title, durationSeconds: seconds })
 
@@ -182,12 +188,12 @@ function HemScreen({ navigation, route }) {
 
   // Klart räknar upp hur många gånger tjatet klarats och sparar hur sent det
   // blev - räknat från första sluttiden, så varje snooze gör det senare.
-  // Bara i tid (med en minuts nåd) ger glad ikon och håller streaken vid liv.
+  // Bara i tid ger glad ikon och håller streaken vid liv.
   // Gäller tjatet som tar slut först - ett eventuellt andra fortsätter ensamt.
   async function handleDone(timer = current) {
     if (!timer) return
     const lateSeconds = Math.max(0, Math.floor((Date.now() - timer.deadline) / 1000))
-    const onTime = lateSeconds <= GRACE_SECONDS
+    const onTime = Date.now() <= timer.deadline
     const finished = {
       ...timer.task,
       status: 'done',
@@ -245,11 +251,11 @@ function HemScreen({ navigation, route }) {
     }
   }
 
-  // Blir ett tjat försenat, mer än minuten man får på sig, är streaken borta
-  // direkt - den väntar inte på att man trycker Klart
+  // Blir ett tjat försenat är streaken borta direkt - samtidigt som
+  // FÖRSENAD-stämpeln dyker upp, utan att vänta på att man trycker Klart
   useEffect(() => {
     if (streak === 0 || timers.length === 0) return
-    const lateAt = Math.min(...timers.map((timer) => timer.deadline)) + GRACE_SECONDS * 1000
+    const lateAt = Math.min(...timers.map((timer) => timer.deadline))
     const timeout = setTimeout(() => setStreak(breakStreak()), Math.max(0, lateAt - Date.now()))
     return () => clearTimeout(timeout)
   }, [timers, streak])
