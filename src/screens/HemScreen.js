@@ -69,10 +69,25 @@ function HemScreen({ navigation, route }) {
     })
   }
 
+  // Timern har en egen kopia av tjatet. Har titeln bytts - i detaljvyn,
+  // eller när talet tolkats klart - får timern och notisen den nya.
+  const timersRef = useRef(timers)
+  timersRef.current = timers
+  function syncTitles(data) {
+    for (const timer of timersRef.current) {
+      const fresh = data.find((task) => task.id === timer.task.id)
+      if (!fresh || fresh.title === timer.task.title) continue
+      const renamed = { ...timer.task, title: fresh.title }
+      updateTimers((previous) => previous.map((item) => (item.task.id === renamed.id ? { ...item, task: renamed } : item)))
+      scheduleAlarm(renamed, timer.endsAt, localSoundUri(renamed.id) ? soundName(renamed.id) : null).catch(() => {})
+    }
+  }
+
   const load = useCallback(() => {
     return getTasks()
       .then((data) => {
         setTasks(data)
+        syncTitles(data)
         setError(null)
       })
       .catch((err) => setError(err.message))
@@ -127,12 +142,8 @@ function HemScreen({ navigation, route }) {
 
   async function handleAdd(typedTitle, seconds, recording) {
     try {
-      // Utan skriven titel lyssnar telefonen på inspelningen och gör en titel
-      // av det viktiga - så att inte alla tjat heter "Inspelat tjat"
-      const heard = !typedTitle && recording ? titleFromSpeech(await transcribe(recording)) : null
-      const title = typedTitle || heard || DEFAULT_TITLE
-
       // Uppgiften skapas först, sedan kopplas inspelningen till den
+      const title = typedTitle || DEFAULT_TITLE
       let task = await createTask({ title, durationSeconds: seconds })
 
       // Ett skrivet tjat utan inspelning läses in med telefonens röst, och
@@ -142,8 +153,25 @@ function HemScreen({ navigation, route }) {
 
       // Lokal kopia i Library/Sounds gör att notisen tjatar med rösten
       await startTimer(task, seconds, voice ? saveLocalSound(task.id, voice) : null)
+
+      // Utan skriven titel lyssnar telefonen på inspelningen och gör en titel
+      // av det viktiga - så att inte alla tjat heter "Inspelat tjat". Tjatet
+      // väntar inte på det, titeln byts när tolkningen är klar.
+      if (!typedTitle && recording) nameFromSpeech(task.id, task.filePath)
     } catch (err) {
       setError(err.message)
+    }
+  }
+
+  async function nameFromSpeech(id, recording) {
+    const heard = titleFromSpeech(await transcribe(recording))
+    if (!heard) return
+    try {
+      await updateTask(id, { title: heard })
+      await load()
+      flashTask(id)
+    } catch {
+      // tjatet hann tas bort - då finns inget att döpa
     }
   }
 

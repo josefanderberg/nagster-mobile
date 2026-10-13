@@ -1,26 +1,32 @@
 import { useRef, useState } from 'react'
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
 import { deleteTask, updateTask } from '../store.js'
 import { deleteLocalSound } from '../sounds.js'
 import TimerRing from '../components/TimerRing.js'
 import HoloText from '../components/HoloText.js'
 import PhotoViewer from '../components/PhotoViewer.js'
+import { PencilIcon } from '../components/icons.js'
 import { turnDial } from '../dial.js'
 import { isSecondsMode, ringUnits } from '../timerRing.js'
 import { formatDuration } from '../time.js'
 import { colors } from '../theme.js'
 
 const PHOTO_LABELS = { snooze: 'Snooze', done: 'Klarat', late: 'Till slut' }
+const MAX_TITLE = 200
 
 // Detaljvyn för ett tjat: allt som är sparat om det, möjligheten att lyssna
-// på inspelningen igen och att köra tjatet en gång till. Det pågående tjatet
-// går varken att ändra, köra om eller ta bort - timern använder det.
+// på inspelningen igen och att köra tjatet en gång till. Titeln går alltid
+// att skriva om, men det pågående tjatets tid går varken att ändra, köra om
+// eller ta bort - timern använder det.
 function DetaljScreen({ route, navigation }) {
   const { task, isActive, canRerun } = route.params
   const player = useAudioPlayer(task.filePath)
   const status = useAudioPlayerStatus(player)
   const [seconds, setSeconds] = useState(task.durationSeconds)
+  const [title, setTitle] = useState(task.title)
+  const [editingTitle, setEditingTitle] = useState(false)
+  const savedTitle = useRef(task.title)
   const [editingTime, setEditingTime] = useState(false)
   const [viewing, setViewing] = useState(null) // vilken bild som visas stort, eller null
   const photos = [...(task.photos ?? [])].reverse() // nyast först
@@ -51,9 +57,28 @@ function DetaljScreen({ route, navigation }) {
 
   // Sparas när fingret släpper ringen, inte för varje steg
   function saveTime() {
-    updateTask(task.id, { ...task, durationSeconds: latestSeconds.current }).catch((err) =>
+    updateTask(task.id, { durationSeconds: latestSeconds.current }).catch((err) =>
       Alert.alert('Kunde inte spara tiden', err.message)
     )
+  }
+
+  // Sparas när tangentbordet går ner. En tom titel ångras - ett tjat måste
+  // heta något. Hem hämtar listan igen och byter titel på en timer som går.
+  function saveTitle() {
+    setEditingTitle(false)
+    const clean = title.trim()
+    if (!clean || clean === savedTitle.current) {
+      setTitle(savedTitle.current)
+      return
+    }
+    const previous = savedTitle.current
+    savedTitle.current = clean
+    setTitle(clean)
+    updateTask(task.id, { title: clean }).catch((err) => {
+      savedTitle.current = previous
+      setTitle(previous)
+      Alert.alert('Kunde inte spara titeln', err.message)
+    })
   }
 
   // Timern bor på Hem, så tjatet startas därifrån
@@ -82,7 +107,24 @@ function DetaljScreen({ route, navigation }) {
 
   return (
     <View style={styles.screen}>
-      <Text style={styles.title}>{task.title}</Text>
+      {/* Tryck på titeln för att skriva om den, t.ex. när talet inte gick att tolka */}
+      {editingTitle ? (
+        <TextInput
+          style={[styles.title, styles.titleInput]}
+          value={title}
+          onChangeText={setTitle}
+          onBlur={saveTitle} // Klar på tangentbordet släpper fältet, så det räcker här
+          maxLength={MAX_TITLE}
+          returnKeyType="done"
+          autoFocus
+          selectTextOnFocus
+        />
+      ) : (
+        <Pressable style={styles.titleRow} onPress={() => setEditingTitle(true)} accessibilityLabel="Byt namn på tjatet">
+          <Text style={[styles.title, styles.titleText]}>{title}</Text>
+          <PencilIcon color={colors.muted} />
+        </Pressable>
+      )}
 
       <View style={[styles.badge, isDone && styles.badgeDone]}>
         <Text style={[styles.badgeText, isDone && styles.badgeDoneText]}>
@@ -182,6 +224,10 @@ function Row({ label, value, editable = false, late = false }) {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.bg, padding: 24, gap: 16 },
   title: { fontSize: 28, fontWeight: '700', color: colors.text },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  titleText: { flexShrink: 1 },
+  // Samma storlek som titeln, med en linje under så att man ser att den går att skriva i
+  titleInput: { padding: 0, borderBottomWidth: 2, borderBottomColor: colors.accent },
   badge: {
     alignSelf: 'flex-start',
     paddingVertical: 3,

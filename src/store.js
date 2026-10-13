@@ -54,13 +54,15 @@ export async function createTask({ title, durationSeconds }) {
   return task
 }
 
-// Bara fälten som går att ändra - resten behåller sitt gamla värde
+// Bara fälten som går att ändra, och bara de som skickas med - resten
+// behåller sitt gamla värde. Då kan man byta titel utan att skicka allt.
 export async function updateTask(id, { title, status, snoozeCount, durationSeconds, doneCount, lateSeconds }) {
   const tasks = readAll()
   const index = tasks.findIndex((task) => task.id === id)
   if (index === -1) throw new Error('Tjatet finns inte längre')
 
-  const updated = { ...tasks[index], title, status, snoozeCount, durationSeconds, doneCount, lateSeconds }
+  const changes = Object.entries({ title, status, snoozeCount, durationSeconds, doneCount, lateSeconds })
+  const updated = { ...tasks[index], ...Object.fromEntries(changes.filter(([, value]) => value !== undefined)) }
   tasks[index] = updated
   writeAll(tasks)
   return withUri(updated)

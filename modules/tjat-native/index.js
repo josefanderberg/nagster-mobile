@@ -7,7 +7,7 @@ const tal = requireOptionalNativeModule('TjatTal')
 const lyssna = requireOptionalNativeModule('TjatLyssna')
 
 const SPEAK_TIMEOUT_MS = 10_000
-const LISTEN_TIMEOUT_MS = 10_000
+const LISTEN_TIMEOUT_MS = 60_000 // tjatet väntar inte, så tolkningen får ta tid
 
 // iOS tystar all haptik medan mikrofonen spelar in - det här slår på den igen
 export function allowHapticsWhileRecording() {
@@ -43,7 +43,7 @@ export function prepareListening() {
 }
 
 // Lyssnar på en inspelning och ger texten, eller null om det inte gick -
-// då får tjatet standardtiteln. Tolkningen sker bara i telefonen.
+// då behåller tjatet standardtiteln. Tolkningen sker bara i telefonen.
 export async function transcribe(fileUri) {
   if (!lyssna) return null
   const timeout = new Promise((resolve) => setTimeout(() => resolve(null), LISTEN_TIMEOUT_MS))
