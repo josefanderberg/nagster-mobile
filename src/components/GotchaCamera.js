@@ -4,9 +4,9 @@ import { CameraView } from 'expo-camera'
 import { savePhoto } from '../store.js'
 import { colors } from '../theme.js'
 
-const SETTLE_MS = 1500 // man ser sig själv live en stund och hinner fixa till sig
-const SHOW_MS = 2400 // så länge bilden med stämpeln visas
-const GIVE_UP_MS = 5000 // blir kameran aldrig redo stängs den tyst
+const PREPARE_MS = 1000 // bilden tas en sekund efter att kameran öppnats - snabbt, men man hinner se sig själv
+const SHOW_MS = 1000 // så länge bilden med stämpeln visas
+const GIVE_UP_MS = 4000 // blir kameran aldrig redo stängs den tyst
 
 const STAMPS = {
   snooze: { text: 'SNOOZE', color: '#c1121f' },
@@ -14,17 +14,20 @@ const STAMPS = {
   late: { text: 'KLARAT...\nTILL SLUT', color: '#f08c00' },
 }
 
-// Ertappad-kameran: frontkameran visar en live-bild en stund, tar sedan en
-// bild när man snoozar eller klarar ett tjat och visar den med en stämpel. Bilden sparas på tjatet och
-// syns som bevis i detaljvyn. shot är { kind, taskId } eller null.
+// Ertappad-kameran: när man snoozar eller klarar ett tjat visar frontkameran
+// en live-bild i en sekund, tar en bild och visar den med en stämpel i en
+// sekund till. Bilden sparas på tjatet och syns som bevis i detaljvyn.
+// shot är { kind, taskId } eller null.
 function GotchaCamera({ shot, onSaved, onClose }) {
   const camera = useRef(null)
   const taken = useRef(false)
+  const openedAt = useRef(0)
   const [photo, setPhoto] = useState(null)
 
   useEffect(() => {
     if (!shot) return
     taken.current = false
+    openedAt.current = Date.now()
     setPhoto(null)
     const giveUp = setTimeout(() => {
       if (!taken.current) onClose()
@@ -38,18 +41,20 @@ function GotchaCamera({ shot, onSaved, onClose }) {
     return () => clearTimeout(timeout)
   }, [photo])
 
+  // Kameran blir oftast redo innan sekunden gått - då väntar den in resten
   function handleReady() {
     if (taken.current || !shot) return
     taken.current = true
+    const wait = Math.max(0, openedAt.current + PREPARE_MS - Date.now())
     setTimeout(async () => {
       try {
-        const picture = await camera.current.takePictureAsync({ quality: 0.4 })
+        const picture = await camera.current.takePictureAsync({ quality: 0.3 })
         setPhoto(picture.uri)
         onSaved(await savePhoto(shot.taskId, picture.uri, shot.kind))
       } catch {
         onClose() // ingen bild - då blir det inget bevis den här gången
       }
-    }, SETTLE_MS)
+    }, wait)
   }
 
   const stamp = STAMPS[shot?.kind] ?? STAMPS.done

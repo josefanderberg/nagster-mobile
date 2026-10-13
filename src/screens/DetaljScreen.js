@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio'
-import { deleteTask, updateTask } from '../store.js'
+import { deletePhoto, deleteTask, updateTask } from '../store.js'
 import { deleteLocalSound } from '../sounds.js'
 import TimerRing from '../components/TimerRing.js'
 import HoloText from '../components/HoloText.js'
@@ -29,7 +29,8 @@ function DetaljScreen({ route, navigation }) {
   const savedTitle = useRef(task.title)
   const [editingTime, setEditingTime] = useState(false)
   const [viewing, setViewing] = useState(null) // vilken bild som visas stort, eller null
-  const photos = [...(task.photos ?? [])].reverse() // nyast först
+  const [savedPhotos, setSavedPhotos] = useState(task.photos ?? [])
+  const photos = [...savedPhotos].reverse() // nyast först
   // Det senaste värdet, så att sparandet när fingret släpper inte missar sista steget
   const latestSeconds = useRef(seconds)
 
@@ -79,6 +80,12 @@ function DetaljScreen({ route, navigation }) {
       setTitle(previous)
       Alert.alert('Kunde inte spara titeln', err.message)
     })
+  }
+
+  // Borttagen direkt i vyn - listan på Hem hämtas på nytt när man går tillbaka
+  function removePhoto(photo) {
+    setSavedPhotos((current) => current.filter((item) => item.name !== photo.name))
+    deletePhoto(task.id, photo.name).catch((err) => Alert.alert('Kunde inte ta bort bilden', err.message))
   }
 
   // Timern bor på Hem, så tjatet startas därifrån
@@ -182,13 +189,13 @@ function DetaljScreen({ route, navigation }) {
         ))}
 
       {/* Ertappad-bilderna, nyast först */}
-      {!editingTime && task.photos?.length > 0 && (
+      {!editingTime && photos.length > 0 && (
         <View style={styles.proof}>
           <Text style={styles.proofTitle}>
             Bevis <Text style={styles.proofLocal}>· bara i din telefon</Text>
           </Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.proofRow}>
-            {/* Tryck på en bild för att se den stort och bläddra mellan alla */}
+            {/* Tryck på en bild för att se den stort, bläddra och ta bort */}
             {photos.map((photo, index) => (
               <Pressable key={photo.name} onPress={() => setViewing(index)}>
                 <Image source={{ uri: photo.uri }} style={styles.photo} />
@@ -201,7 +208,7 @@ function DetaljScreen({ route, navigation }) {
         </View>
       )}
 
-      <PhotoViewer photos={photos} startIndex={viewing} onClose={() => setViewing(null)} />
+      <PhotoViewer photos={photos} startIndex={viewing} onClose={() => setViewing(null)} onDelete={removePhoto} />
 
       {!editingTime && !isActive && (
         <Pressable style={styles.deleteBtn} onPress={confirmDelete}>

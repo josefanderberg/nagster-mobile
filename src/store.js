@@ -183,3 +183,19 @@ export async function savePhoto(id, photoUri, kind) {
   writeAll(tasks)
   return withUri(task)
 }
+
+// Tar bort en bevisbild, både ur tjatet och filen själv
+export async function deletePhoto(id, name) {
+  const tasks = readAll()
+  const task = tasks.find((item) => item.id === id)
+  if (!task) throw new Error('Tjatet finns inte längre')
+  task.photos = (task.photos ?? []).filter((photo) => photo.name !== name)
+  writeAll(tasks)
+  try {
+    const file = new File(photosDir, name)
+    if (file.exists) file.delete()
+  } catch {
+    // filen är redan borta ur tjatet - en kvarglömd fil gör ingen skada
+  }
+  return withUri(task)
+}

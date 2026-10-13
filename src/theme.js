@@ -11,11 +11,14 @@ export const colors = {
   border: '#e8e0d5',
 }
 
-// Hur mörk skuggan blir när tiden är ute och bara Klart och Snooza gäller
-export const SHADE = 0.45
+// Mörkt läge medan ett tjat går: bakgrunden mörknar och det som inte gäller
+// just nu tonas ner, så att bara timern och knapparna syns tydligt
+export const SHADE = 0.75 // hur mycket av textfärgen som blandas in i bakgrunden
+export const DIMMED = 0.3 // opaciteten för det som tonas ner
+export const lightText = '#faf7f2'
+export const lightMuted = '#cfc5b8'
 
-// Färgen man får med skuggan (colors.text) ovanpå en annan färg - för det
-// som inte kan ligga under själva skuggan, som rubrikraden
+// Färgen man får med skuggan (colors.text) ovanpå en annan färg
 export function shaded(hex) {
   const channel = (offset) => {
     const base = parseInt(hex.slice(offset, offset + 2), 16)

@@ -73,14 +73,18 @@ export function LockIcon({ color }) {
   )
 }
 
-export function FlameIcon({ color }) {
+// Fylld stjärna för streaken - fyllningen är det som blinkar
+export function StarIcon({ color }) {
   return (
-    <Icon color={color}>
+    <Svg width={18} height={18} viewBox="0 0 24 24">
       <Path
-        d="M12 2.5c.5 3.2 4.5 5 4.5 10a4.5 4.5 0 0 1-9 0c0-2 1-3.5 2.3-4.6.1 1.6.8 2.6 1.9 3C11.2 8.5 11 5.5 12 2.5Z"
+        d="M12 2.8l2.8 5.9 6.4.8-4.7 4.4 1.2 6.4L12 17.2l-5.7 3.1 1.2-6.4-4.7-4.4 6.4-.8z"
         fill={color}
+        stroke={color}
+        strokeWidth={1.2}
+        strokeLinejoin="round"
       />
-    </Icon>
+    </Svg>
   )
 }
 

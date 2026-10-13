@@ -36,10 +36,11 @@ För TestFlight: `eas build --profile production --platform ios --auto-submit`.
 
 ## Så används den
 
-- **Hem:** dra i ringen för att välja tid, spela in ett tjat med mikrofonen och tryck Starta. Listan under visar alla tjat, och knappen på varje kort kör tjatet igen. Går redan ett tjat hamnar det nya i en inre ring - högst två samtidigt, och Klart och Snooza gäller det som tar slut först. När tiden är ute mörknar allt utom **Klart** och **Snooza**.
+- **Hem:** dra i ringen för att välja tid, skriv eller spela in ett tjat och tryck Starta - den blinkar grönt när det finns något att starta. Medan tjatet går är skärmen mörk och bara det som gäller syns: tiden, **Klart**, **Mer tid**, låset och tjatet i listan med Avbryt. När tiden är ute gäller bara **Klart** och **Snooza**. Mer tid och Snooza ger valen 1, 5 eller 10 minuter (sekunder för tjat under en minut), och väljer du inget blir det 2 minuter. Går redan ett tjat hamnar ett nytt i en inre ring - högst två samtidigt.
+- **Listan** visar alla tjat med sin tid och en grön bock med hur många gånger de klarats. Svep höger för att köra igen, vänster för att ta bort, och håll inne för att lyssna.
 - **Detalj:** tryck på ett tjat i listan för att se det och lyssna på inspelningen. Tryck på titeln för att byta namn och på tiden för att ändra den, och på **Kör igen** för att starta tjatet en gång till med samma röst.
-- **Kameran uppe till höger i rubriken** slår på ertappad-kameran: frontkameran tar en bild med stämpel när du snoozar eller klarar ett tjat. Bilderna syns som bevis i detaljvyn. **Lågan uppe till vänster** är din streak, tjat i rad klarade i tid.
-- **Låset uppe till höger** slår på rörelsevakten. Lägg telefonen på bordet, skärmen blir svart och visar svagt hur lång tid som är kvar. Plockar du upp den blir den röd och vibrerar. Håll inne i tre sekunder för att stänga av.
+- **Kameran uppe till höger i rubriken** slår på ertappad-kameran: frontkameran tar en bild med stämpel när du snoozar eller klarar ett tjat. Bilderna syns som bevis i detaljvyn, där de kan visas stort och tas bort. **Siffran med stjärnan uppe till vänster** är din streak, tjat i rad klarade i tid.
+- **Låset** slår på rörelsevakten. Lägg telefonen på bordet, skärmen blir svart och visar svagt hur lång tid som är kvar. Plockar du upp den för tidigt blir den allt mer misstänksam, sedan röd och vibrerar - **Klar** avslutar tjatet och **Håll: öppna** tar dig tillbaka till appen. Plockar du upp den när tiden är ute släpper vakten direkt. Håll inne i tre sekunder på den svarta skärmen för att stänga av.
 
 ## Tekniska val
 

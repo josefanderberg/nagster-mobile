@@ -4,12 +4,14 @@ import { useKeepAwake } from 'expo-keep-awake'
 import TimerRing from './TimerRing.js'
 import HoloText from './HoloText.js'
 import GuardButton from './GuardButton.js'
+import SnoozeChoices from './SnoozeChoices.js'
 import { ClockIcon, TimerIcon } from './icons.js'
 import { localSoundUri } from '../sounds.js'
 import { playNag, speakNag } from '../nag.js'
 import { isSecondsMode, SIZE } from '../timerRing.js'
 import { clockTime, timerLabel, timerState } from '../time.js'
-import { colors, SHADE } from '../theme.js'
+import { useSnoozeChoice } from '../useSnoozeChoice.js'
+import { colors, DIMMED, lightMuted, lightText } from '../theme.js'
 
 const INNER_SCALE = 0.64 // den inre ringen får plats innanför den yttre
 const INNER_GREEN = '#3fb6a8' // lite blågrönare, så att ringarna går att skilja åt
@@ -17,11 +19,12 @@ const INNER_GREEN = '#3fb6a8' // lite blågrönare, så att ringarna går att sk
 // En ring per tjat: grön nedräkning, eller röd uppräkning när tiden är ute
 function Ring({ timer, state, label, green }) {
   return state.expired ? (
-    <TimerRing units={state.lateSeconds} label={label} color={colors.accentDark} interactive={false} />
+    <TimerRing units={state.lateSeconds} label={label} labelColor={lightText} color={colors.accentDark} interactive={false} />
   ) : (
     <TimerRing
       units={state.secondsLeft}
       label={label}
+      labelColor={lightText}
       color={green}
       mirrored={isSecondsMode(timer.task.durationSeconds)}
       interactive={false}
@@ -31,9 +34,10 @@ function Ring({ timer, state, label, green }) {
 
 // Tjaten som är igång: ringarna räknar ner och går inte att dra i. Ett varv
 // är en minut, så sekundvisaren syns tydligt. Ett andra tjat syns som en
-// inre ring. Klart och Snooza gäller det som tar slut först (current).
-// När tiden är ute mörknar allt utom knapparna - då är det bara de som
-// gäller. onFocusChange berättar det för skärmen, som mörkar resten.
+// inre ring. Klart och Mer tid/Snooza gäller det som tar slut först (current).
+// Skärmen är mörk medan tjatet går. När tiden är ute tonas även ringen ner,
+// så att bara knapparna gäller - onFocusChange berättar det för skärmen.
+// onSnooze får antalet sekunder man valde.
 function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }) {
   useKeepAwake() // skärmen får inte somna - då slutar accelerometern mäta
 
@@ -59,10 +63,12 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }
     }
   }, [])
 
-  const shade = useRef(new Animated.Value(0)).current
+  const dim = useRef(new Animated.Value(1)).current
+  const choice = useSnoozeChoice((seconds) => onSnooze(seconds))
   useEffect(() => {
-    Animated.timing(shade, { toValue: state.expired ? SHADE : 0, duration: 250, useNativeDriver: true }).start()
+    Animated.timing(dim, { toValue: state.expired ? DIMMED : 1, duration: 250, useNativeDriver: true }).start()
     onFocusChange(state.expired)
+    choice.close() // valen för "Mer tid" gäller inte längre när tiden gått ut
   }, [state.expired])
   useEffect(() => () => onFocusChange(false), [])
 
@@ -87,10 +93,11 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }
     }
   }, [state.expired, source, task.title, task.snoozeCount])
 
-  // Själva snooze-tiden räknas ut i HemScreen, som också bokar om notisen
-  function handleSnooze() {
+  // Mer tid och Snooza öppnar valen 1, 5 och 10 - rösten tystnar direkt.
+  // HemScreen lägger på tiden och bokar om notisen.
+  function askForTime() {
     stopNag.current?.()
-    onSnooze()
+    choice.show()
   }
 
   function handleDone() {
@@ -106,7 +113,7 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }
 
   return (
     <View style={styles.wrapper}>
-      <View>
+      <Animated.View style={{ opacity: dim }} pointerEvents={state.expired ? 'none' : 'auto'}>
         <Ring timer={outer} state={timerState(outer, now)} label={inner ? '' : centerLabel} green={colors.ok} />
 
         {inner && (
@@ -134,10 +141,10 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }
 
         {/* Vakten går att slå på även när tiden redan går - knappen blinkar som påminnelse */}
         <GuardButton guard={guard} blinkSeed={task.id} />
-      </View>
+      </Animated.View>
 
       {/* Samma höjd som formulärets knapprad, annars hoppar ringen */}
-      <View style={styles.titleRow}>
+      <Animated.View style={[styles.titleRow, { opacity: dim }]}>
         {arming ? (
           <Text style={[styles.title, styles.guardText]} numberOfLines={1}>
             Lägg mobilen på bordet … {guard.armLeft}
@@ -154,37 +161,35 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }
             )}
           </>
         )}
-      </View>
+      </Animated.View>
 
       {/* Belöningen mitt i tjatet: hur många gånger det redan är klarat */}
       {task.doneCount > 0 && (
-        <View style={styles.holo}>
+        <Animated.View style={[styles.holo, { opacity: dim }]}>
           <HoloText text={`Klarat ${task.doneCount} ggr`} seed={task.id} />
-        </View>
+        </Animated.View>
       )}
 
-      {/* Skuggan ligger över allt som ritats före den, men under knapparna */}
-      <Animated.View pointerEvents={state.expired ? 'auto' : 'none'} style={[styles.shade, { opacity: shade }]} />
-
-      {/* Klart går alltid - även för sent. Snooza först när tiden är ute. */}
-      <View style={styles.buttons}>
-        <Pressable style={[styles.btn, styles.done]} onPress={handleDone}>
-          <Text style={styles.btnText}>Klart</Text>
-        </Pressable>
-        {state.expired && (
-          <Pressable style={[styles.btn, styles.snooze]} onPress={handleSnooze}>
-            <Text style={styles.btnText}>Snooza</Text>
+      {/* Klart går alltid - även för sent. Mer tid medan tiden går, Snooza
+          när den är ute. Båda byts mot valen 1, 5 och 10 på samma rad. */}
+      {choice.open ? (
+        <SnoozeChoices durationSeconds={task.durationSeconds} onPick={choice.pick} />
+      ) : (
+        <View style={styles.buttons}>
+          <Pressable style={[styles.btn, styles.done]} onPress={handleDone}>
+            <Text style={styles.btnText}>Klart</Text>
           </Pressable>
-        )}
-      </View>
+          <Pressable style={[styles.btn, state.expired ? styles.snooze : styles.more]} onPress={askForTime}>
+            <Text style={styles.btnText}>{state.expired ? 'Snooza' : 'Mer tid'}</Text>
+          </Pressable>
+        </View>
+      )}
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   wrapper: { alignItems: 'center', gap: 16 },
-  // Långt utanför ringen åt alla håll, så att den täcker hela skärmen
-  shade: { position: 'absolute', top: -2000, bottom: -2000, left: -1000, right: -1000, backgroundColor: colors.text },
   cornerBtn: {
     position: 'absolute',
     top: -4,
@@ -201,11 +206,12 @@ const styles = StyleSheet.create({
   // Den inre ringen ritas i full storlek och krymps runt mitten
   inner: { position: 'absolute', top: 0, left: 0, width: SIZE, height: SIZE, transform: [{ scale: INNER_SCALE }] },
   centerLabel: { position: 'absolute', top: 0, left: 0, width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' },
-  centerText: { fontSize: 30, fontWeight: '700', color: colors.text },
+  // Ljus text - skärmen är mörk medan tjatet går
+  centerText: { fontSize: 30, fontWeight: '700', color: lightText },
   titleRow: { height: 46, justifyContent: 'center', alignItems: 'center' },
-  title: { color: colors.muted, fontSize: 15 },
-  titleFirst: { color: colors.text, fontWeight: '600' },
-  titleNext: { color: colors.muted, fontSize: 13, marginTop: 2 },
+  title: { color: lightMuted, fontSize: 15 },
+  titleFirst: { color: lightText, fontWeight: '600' },
+  titleNext: { color: lightMuted, fontSize: 13, marginTop: 2 },
   guardText: { color: colors.accent, fontWeight: '600' },
   buttons: { flexDirection: 'row', gap: 12 },
   // Mörk etikett så att de ljusa holofärgerna lyser, som ett klistermärke
@@ -225,6 +231,7 @@ const styles = StyleSheet.create({
   stampText: { color: colors.accentDark, fontSize: 18, fontWeight: '900', letterSpacing: 2 },
   done: { backgroundColor: colors.ok },
   snooze: { backgroundColor: colors.accent },
+  more: { borderWidth: 2, borderColor: lightMuted, paddingVertical: 8, paddingHorizontal: 26 },
   btnText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 })
 

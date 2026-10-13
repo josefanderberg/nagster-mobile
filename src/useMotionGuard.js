@@ -14,7 +14,6 @@ const RETURN_THRESHOLD = 0.08 // snävare, annars slår larmet av och på i kant
 const STILL_THRESHOLD = 0.03
 const STILL_READINGS = 3
 const FLAT = 0.9 // tyngdkraften drar rakt genom skärmen
-const FREE_MS = 2000 // så länge den gröna skärmen syns innan vakten släpper
 const EARLY_MS = 1000 // så här tidigt före sluttiden räknas upplockningen som i tid
 
 function distance(a, b) {
@@ -24,9 +23,10 @@ function distance(a, b) {
 // Rörelsevakten sparar telefonens läge på bordet och larmar om den flyttas.
 // Sparar ingenting. alarmSoundUri är det aktiva tjatets lokala inspelning -
 // finns den skäller den med i larmet. endsAt är tjatets sluttid: plockas
-// mobilen upp när tiden är ute är man klar, och då blir skärmen grön i
-// stället för röd.
-// Faser: 'off' -> 'arming' -> 'watching' <-> 'alarm', eller 'watching' -> 'free' -> 'off'
+// mobilen upp när tiden är ute släpper vakten direkt, så att man kommer
+// till Klart och Snooza - det är inte säkert att man är klar bara för att
+// tiden gått.
+// Faser: 'off' -> 'arming' -> 'watching' <-> 'alarm', eller 'watching' -> 'off'
 export function useMotionGuard(alarmSoundUri, endsAt) {
   const [phase, setPhase] = useState('off')
   const [armLeft, setArmLeft] = useState(Math.ceil(ARM_MS / 1000))
@@ -68,7 +68,7 @@ export function useMotionGuard(alarmSoundUri, endsAt) {
         }
         if (distance(reading, resting.current) > MOVE_THRESHOLD) {
           const ends = timerEndsAt.current
-          setPhase(ends && Date.now() >= ends - EARLY_MS ? 'free' : 'alarm')
+          setPhase(ends && Date.now() >= ends - EARLY_MS ? 'off' : 'alarm')
         }
         return
       }
@@ -87,14 +87,6 @@ export function useMotionGuard(alarmSoundUri, endsAt) {
     })
 
     return () => subscription.remove()
-  }, [phase])
-
-  // Tiden var ute när mobilen plockades upp: grönt en stund, sedan släpper
-  // vakten så att man kan trycka Klart
-  useEffect(() => {
-    if (phase !== 'free') return
-    const timeout = setTimeout(() => setPhase('off'), FREE_MS)
-    return () => clearTimeout(timeout)
   }, [phase])
 
   // Vibrationen trappas upp exponentiellt tills mobilen ligger stilla igen.

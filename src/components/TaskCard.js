@@ -3,15 +3,16 @@ import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-nativ
 import { formatDuration } from '../time.js'
 import { FastForwardIcon } from './icons.js'
 import { holoVariant } from './HoloText.js'
-import { colors } from '../theme.js'
+import { colors, DIMMED } from '../theme.js'
 
 // onRun startar tjatet direkt från listan - eller i en inre ring om ett
 // annat redan går. null när det inte går, t.ex. när två redan är igång.
 // onPreview spelar upp tjatet när man håller inne på kortet. Ändras flashKey
 // blinkar kanten till i tjatets holofärger - samma som i detaljvyn.
+// dimmed tonar ner kortet medan ett annat tjat är det som gäller.
 const FLASH_MS = 1400
 
-function TaskCard({ task, isActive = false, onCancel, onRun = null, onPreview, onPress, flashKey = 0 }) {
+function TaskCard({ task, isActive = false, onCancel, onRun = null, onPreview, onPress, flashKey = 0, dimmed = false }) {
   const isDone = task.status === 'done'
   const flash = useRef(new Animated.Value(1)).current
 
@@ -38,7 +39,7 @@ function TaskCard({ task, isActive = false, onCancel, onRun = null, onPreview, o
 
   return (
     <Pressable
-      style={[styles.card, isActive && styles.active]}
+      style={[styles.card, isActive && styles.active, dimmed && styles.dimmed]}
       onPress={onPress}
       onLongPress={onPreview}
       delayLongPress={350}
@@ -61,22 +62,21 @@ function TaskCard({ task, isActive = false, onCancel, onRun = null, onPreview, o
               <FastForwardIcon color={colors.muted} />
             </Pressable>
           )}
-          <View style={[styles.badge, isDone && styles.badgeDone]}>
-            <Text style={[styles.badgeText, isDone && styles.badgeDoneText]}>
-              {isDone ? 'Klart' : formatDuration(task.durationSeconds)}
-            </Text>
+          {/* Klarade tjat får en grön bricka med hur många gånger - tiden står kvar bredvid */}
+          {(isDone || task.doneCount > 0) && (
+            <View style={[styles.badge, styles.badgeDone]} accessibilityLabel={`Klarat ${task.doneCount ?? 0} gånger`}>
+              <Text style={[styles.badgeText, styles.badgeDoneText]}>{task.doneCount > 0 ? `✓ ${task.doneCount}` : '✓'}</Text>
+            </View>
+          )}
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{formatDuration(task.durationSeconds)}</Text>
           </View>
         </View>
       </View>
 
-      {(task.doneCount > 0 || notes !== '') && (
+      {notes !== '' && (
         <View style={styles.bottom}>
-          {task.doneCount > 0 && <Text style={styles.count}>Klarat {task.doneCount} ggr</Text>}
-          {notes !== '' && (
-            <Text style={[styles.snooze, isDone && styles.doneText]}>
-              {notes.charAt(0).toUpperCase() + notes.slice(1)}
-            </Text>
-          )}
+          <Text style={[styles.snooze, isDone && styles.doneText]}>{notes.charAt(0).toUpperCase() + notes.slice(1)}</Text>
         </View>
       )}
     </Pressable>
@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   },
   // Holoblinket ligger som en ram ovanpå kortets vanliga kant
   flash: { position: 'absolute', top: -1, right: -1, bottom: -1, left: -1, borderRadius: 14, borderWidth: 3 },
-  // Klara tjat tonas ner - men inte holo-räknaren, den ska lysa
+  // Klara tjat tonas ner lite
   doneText: { opacity: 0.55 },
   bottom: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   // Grå och diskret, som spola fram-knappen på en VHS
@@ -108,8 +108,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  count: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   active: { borderColor: colors.ok },
+  dimmed: { opacity: DIMMED },
   top: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
   title: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '600' },
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -131,7 +131,7 @@ const styles = StyleSheet.create({
   },
   badgeDone: { borderColor: colors.ok, backgroundColor: '#e8f6ee' },
   badgeText: { color: colors.muted, fontSize: 12 },
-  badgeDoneText: { color: colors.ok },
+  badgeDoneText: { color: colors.ok, fontWeight: '700' },
   snooze: { color: colors.accentDark, fontSize: 13 },
 })
 

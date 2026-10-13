@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { useEffect, useRef, useState } from 'react'
+import { Animated, Easing, Keyboard, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import TimerRing from './TimerRing.js'
 import Recorder from './Recorder.js'
 import { useRecorder } from '../useRecorder.js'
@@ -11,6 +11,7 @@ import { ClockIcon, PencilIcon, TimerIcon } from './icons.js'
 import GuardButton from './GuardButton.js'
 
 const DEFAULT_SECONDS = 10
+const BLINK_MS = 600
 
 function TaskForm({ onAdd, onError, guard }) {
   const [title, setTitle] = useState('')
@@ -25,6 +26,24 @@ function TaskForm({ onAdd, onError, guard }) {
   // Ett tjat kräver en titel eller en inspelning - båda behövs inte.
   // Rörelsevakten räknas inte: den är en egen funktion som inte sparar något.
   const canStart = Boolean(title.trim()) || recorder.isRecording || recorder.audio !== null
+  const ready = canStart && !saving
+
+  // Starta blinkar grönt så fort det finns något att starta
+  const blink = useRef(new Animated.Value(1)).current
+  useEffect(() => {
+    if (!ready) {
+      blink.setValue(1)
+      return
+    }
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blink, { toValue: 0.45, duration: BLINK_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+        Animated.timing(blink, { toValue: 1, duration: BLINK_MS, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+      ])
+    )
+    loop.start()
+    return () => loop.stop()
+  }, [ready, blink])
 
   function handlePointer(x, y, rect) {
     setSeconds(turnDial(seconds, x, y, rect))
@@ -98,12 +117,10 @@ function TaskForm({ onAdd, onError, guard }) {
 
       </View>
 
-      <Pressable
-        style={[styles.startBtn, !canStart && styles.disabled]}
-        onPress={handleStart}
-        disabled={!canStart || saving}
-      >
-        <Text style={styles.startText}>{saving ? 'Startar …' : 'Starta'}</Text>
+      <Pressable onPress={handleStart} disabled={!canStart || saving}>
+        <Animated.View style={[styles.startBtn, canStart ? styles.ready : styles.disabled, { opacity: blink }]}>
+          <Text style={[styles.startText, !canStart && styles.disabledText]}>{saving ? 'Startar …' : 'Starta'}</Text>
+        </Animated.View>
       </Pressable>
     </View>
   )
@@ -148,12 +165,13 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   startBtn: {
-    backgroundColor: colors.accent,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 28,
   },
-  disabled: { opacity: 0.45 },
+  ready: { backgroundColor: colors.ok },
+  disabled: { backgroundColor: colors.border },
+  disabledText: { color: colors.muted },
   startText: { color: '#fff', fontWeight: '600', fontSize: 16 },
 })
 

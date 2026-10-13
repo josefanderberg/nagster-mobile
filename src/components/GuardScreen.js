@@ -24,14 +24,28 @@ const STAGES = [
   { heading: 'LÄGG NED\nMOBILEN', sub: 'Lägg tillbaka den så tystnar larmet.' },
 ]
 
+// Den tid som är kvar på tjatet som tar slut först, eller hur sent det är
+function useTimeLeft(timer, active) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!active || !timer) return
+    setNow(Date.now())
+    const interval = setInterval(() => setNow(Date.now()), 250)
+    return () => clearInterval(interval)
+  }, [active, timer])
+  return timer ? timerLabel(timerState(timer, now)) : null
+}
+
 // Larmets innehåll i valfri färg. Ritas två gånger, se nedan - bara den
-// undre kopian tar emot tryck. Går ett tjat kan man trycka Klar direkt,
-// men mer tid kräver att man håller inne.
-function AlarmContent({ color, stage, hasTimer, onDone, onHoldStart, onHoldEnd }) {
+// undre kopian tar emot tryck. Tiden står ovanför knapparna, så att man vet
+// hur länge man har kvar. Går ett tjat kan man trycka Klar direkt, men att
+// öppna appen kräver att man håller inne - där finns sedan Mer tid.
+function AlarmContent({ color, stage, timeLeft, hasTimer, onDone, onHoldStart, onHoldEnd }) {
   return (
     <View style={styles.content}>
       <Text style={[styles.heading, { color }]}>{STAGES[stage].heading}</Text>
       <Text style={[styles.sub, { color }]}>{STAGES[stage].sub}</Text>
+      {timeLeft && <Text style={[styles.alarmTime, { color }]}>{timeLeft}</Text>}
       <View style={styles.buttons}>
         {hasTimer && (
           <Pressable style={styles.done} onPress={onDone}>
@@ -39,49 +53,27 @@ function AlarmContent({ color, stage, hasTimer, onDone, onHoldStart, onHoldEnd }
           </Pressable>
         )}
         <Pressable style={[styles.hold, { borderColor: color }]} onPressIn={onHoldStart} onPressOut={onHoldEnd}>
-          <Text style={[styles.holdText, { color }]}>{hasTimer ? 'Håll: mer tid' : 'Håll: stäng av'}</Text>
+          <Text style={[styles.holdText, { color }]}>{hasTimer ? 'Håll: öppna' : 'Håll: stäng av'}</Text>
         </Pressable>
       </View>
     </View>
   )
 }
 
-// Tiden som är kvar på det tjat som tar slut först, svagt på den svarta
-// skärmen - så att man vet hur länge man ska låta bli mobilen
-function TimeLeft({ timer }) {
-  const [now, setNow] = useState(() => Date.now())
-  useEffect(() => {
-    const interval = setInterval(() => setNow(Date.now()), 250)
-    return () => clearInterval(interval)
-  }, [])
-  const state = timerState(timer, now)
-  return (
-    <>
-      <Text style={styles.timeLeft}>{timerLabel(state)}</Text>
-      <Text style={styles.timeTitle} numberOfLines={1}>
-        {timer.task.title}
-      </Text>
-    </>
-  )
-}
-
 // Skärmen medan vakten är låst: svart normalt, färg vid larm. Ett enda modal-
 // fönster med flera lägen, eftersom iOS kan krångla när en modal stängs
-// samtidigt som en annan öppnas. Den svarta skärmen stängs av genom att hålla
-// inne i tre sekunder var som helst. Vid larm finns knappar: Klar, och håll
-// för mer tid (eller för att stänga av när inget tjat går).
-function GuardScreen({ phase, onDisarm, hasTimer, timer, onDone, onMoreTime }) {
+// samtidigt som en annan öppnas. Den svarta skärmen visar svagt hur lång tid
+// som är kvar och stängs av genom att hålla inne i tre sekunder var som
+// helst. Vid larm finns knappar: Klar, och håll för att öppna appen.
+function GuardScreen({ phase, onDisarm, hasTimer, timer, onDone }) {
   const { width, height } = useWindowDimensions()
-  // Vad hållandet gör avgörs när det är klart - därför en ref
-  const holdAction = useRef(onDisarm)
-  holdAction.current = phase === 'alarm' && hasTimer ? onMoreTime : onDisarm
-  const hold = useHoldToConfirm(() => holdAction.current())
+  const hold = useHoldToConfirm(onDisarm)
   const [hint, setHint] = useState(false)
   const hintTimer = useRef(null)
 
   const alarm = phase === 'alarm'
-  const free = phase === 'free' // tiden var ute när mobilen plockades upp
-  const visible = phase === 'watching' || alarm || free
+  const visible = phase === 'watching' || alarm
+  const timeLeft = useTimeLeft(hasTimer ? timer : null, visible)
 
   // Färgen glider blått -> orange -> rött under misstänksamhetens sekunder
   const [stage, setStage] = useState(0)
@@ -115,11 +107,9 @@ function GuardScreen({ phase, onDisarm, hasTimer, timer, onDone, onMoreTime }) {
     if (alarm) return // vid larm håller man på knappen, inte var som helst
     hold.startHold()
     // På den svarta skärmen syns en diskret ledtråd en stund när man rör den
-    if (!alarm) {
-      setHint(true)
-      clearTimeout(hintTimer.current)
-      hintTimer.current = setTimeout(() => setHint(false), HINT_MS)
-    }
+    setHint(true)
+    clearTimeout(hintTimer.current)
+    hintTimer.current = setTimeout(() => setHint(false), HINT_MS)
   }
 
   const fillHeight = hold.fill.interpolate({ inputRange: [0, 1], outputRange: [0, height] })
@@ -128,18 +118,11 @@ function GuardScreen({ phase, onDisarm, hasTimer, timer, onDone, onMoreTime }) {
     <Modal visible={visible} animationType="none" statusBarTranslucent>
       <StatusBar hidden />
       <Pressable
-        style={{ width, height, backgroundColor: alarm ? 'transparent' : free ? GREEN : BLACK }}
+        style={{ width, height, backgroundColor: alarm ? 'transparent' : BLACK }}
         onPressIn={handlePressIn}
         onPressOut={hold.stopHold}
       >
-        {free ? (
-          <View style={[styles.layer, { height }]}>
-            <View style={styles.content}>
-              <Text style={[styles.heading, { color: WHITE }]}>SNYGGT!</Text>
-              <Text style={[styles.sub, { color: WHITE }]}>Tiden är ute - nu får du ta upp mobilen.</Text>
-            </View>
-          </View>
-        ) : alarm ? (
+        {alarm ? (
           <>
             <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: alarmColor }]} />
             {/* Vitt på färg underst, rött på vitt i fyllnaden som klipper */}
@@ -147,6 +130,7 @@ function GuardScreen({ phase, onDisarm, hasTimer, timer, onDone, onMoreTime }) {
               <AlarmContent
                 color={WHITE}
                 stage={stage}
+                timeLeft={timeLeft}
                 hasTimer={hasTimer}
                 onDone={onDone}
                 onHoldStart={hold.startHold}
@@ -155,7 +139,7 @@ function GuardScreen({ phase, onDisarm, hasTimer, timer, onDone, onMoreTime }) {
             </View>
             <Animated.View pointerEvents="none" style={[styles.fill, { height: fillHeight, backgroundColor: WHITE }]}>
               <View style={[styles.layer, { height }]}>
-                <AlarmContent color={RED} stage={stage} hasTimer={hasTimer} />
+                <AlarmContent color={RED} stage={stage} timeLeft={timeLeft} hasTimer={hasTimer} />
               </View>
             </Animated.View>
           </>
@@ -163,7 +147,14 @@ function GuardScreen({ phase, onDisarm, hasTimer, timer, onDone, onMoreTime }) {
           <>
             <Animated.View pointerEvents="none" style={[styles.fill, { height: fillHeight, backgroundColor: DIM }]} />
             <View pointerEvents="none" style={[styles.layer, styles.center, { height }]}>
-              {timer && <TimeLeft timer={timer} />}
+              {timeLeft && (
+                <>
+                  <Text style={styles.timeLeft}>{timeLeft}</Text>
+                  <Text style={styles.timeTitle} numberOfLines={1}>
+                    {timer.task.title}
+                  </Text>
+                </>
+              )}
               {hint && <Text style={styles.hint}>Håll inne i 3 sekunder för att låsa upp</Text>}
             </View>
           </>
@@ -181,7 +172,8 @@ const styles = StyleSheet.create({
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 16 },
   heading: { fontSize: 46, fontWeight: '900', textAlign: 'center', lineHeight: 52 },
   sub: { fontSize: 16, textAlign: 'center' },
-  buttons: { marginTop: 32, flexDirection: 'row', gap: 12 },
+  alarmTime: { marginTop: 24, fontSize: 56, fontWeight: '300', fontVariant: ['tabular-nums'] },
+  buttons: { marginTop: 8, flexDirection: 'row', gap: 12 },
   done: { backgroundColor: WHITE, borderRadius: 16, paddingVertical: 18, paddingHorizontal: 28 },
   doneText: { color: GREEN, fontSize: 17, fontWeight: '800' },
   hold: { borderWidth: 2, borderRadius: 16, paddingVertical: 16, paddingHorizontal: 22 },

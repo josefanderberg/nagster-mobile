@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Alert, FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Alert, Animated, FlatList, Keyboard, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useFocusEffect } from '@react-navigation/native'
+import { StatusBar } from 'expo-status-bar'
 import * as Notifications from 'expo-notifications'
 import { breakStreak, createTask, deleteTask, getSettings, getStreak, getTasks, recordCompletion, restartTask, saveRecording, saveSetting, updateTask } from '../store.js'
 import { cancelAlarm, ensureNotificationPermission, scheduleAlarm } from '../notifications.js'
@@ -17,16 +18,15 @@ import GotchaCamera from '../components/GotchaCamera.js'
 import { CameraIcon } from '../components/icons.js'
 import { Camera } from 'expo-camera'
 import { useMotionGuard } from '../useMotionGuard.js'
-import { isSecondsMode } from '../timerRing.js'
+import { DEFAULT_SNOOZE_SECONDS } from '../snooze.js'
 import { showDoneIcon, showNaggingIcon } from '../appIcon.js'
 import { previewNag } from '../nag.js'
 import * as Haptics from 'expo-haptics'
 import { File, Paths } from 'expo-file-system'
 import { speakToFile, transcribe } from '../../modules/tjat-native/index.js'
 import { titleFromSpeech } from '../title.js'
-import { colors, shaded } from '../theme.js'
+import { colors, lightText, shaded } from '../theme.js'
 
-const SNOOZE_MINUTES = 10
 const DEFAULT_TITLE = 'Inspelat tjat' // när inget gick att höra
 const MAX_TIMERS = 2 // ett tjat, plus ett till i en inre ring
 const LIST_HEIGHT = 210 // listans plats på skärmen, som förut
@@ -50,7 +50,11 @@ function HemScreen({ navigation, route }) {
   const [flash, setFlash] = useState({ id: null, key: 0 })
   const flashTask = (id) => setFlash((previous) => ({ id, key: previous.key + 1 }))
   const current = firstToEnd(timers)
-  const [focus, setFocus] = useState(false) // tiden är ute - bara Klart och Snooza gäller
+  // Skärmen är mörk medan ett tjat går, så att bara det som gäller syns.
+  // När tiden är ute (expired) gäller bara Klart och Snooza.
+  const dark = timers.length > 0
+  const [expired, setExpired] = useState(false)
+  const shade = useRef(new Animated.Value(0)).current
   // Luckan mellan timern och listan halveras genom att listan sträcker sig
   // upp i luckans nedre halva. Timern centreras som förut och står kvar.
   const [heroHeight, setHeroHeight] = useState(0)
@@ -196,13 +200,12 @@ function HemScreen({ navigation, route }) {
     handleRerun(rerun.id, rerun.seconds)
   }, [rerun])
 
-  // Snooze ger tio minuter till - eller samma antal sekunder igen om tjatet
-  // sattes i sekunder, så att man kan visa upp det snabbt. Gäller tjatet som
-  // tar slut först, om inte notisen pekade ut ett annat.
-  async function handleSnooze(timer = current) {
+  // Snooze och Mer tid ger den tid man valde, eller två minuter om man inte
+  // valde något (som från notisens knapp). Gäller tjatet som tar slut först,
+  // om inte notisen pekade ut ett annat.
+  async function handleSnooze(timer = current, extraSeconds = DEFAULT_SNOOZE_SECONDS) {
     if (!timer) return
     const snoozed = { ...timer.task, snoozeCount: timer.task.snoozeCount + 1 }
-    const extraSeconds = isSecondsMode(snoozed.durationSeconds) ? snoozed.durationSeconds : SNOOZE_MINUTES * 60
     // Mer tid läggs på det som är kvar - ber man om det innan tiden är ute
     // ska man inte få mindre tid
     const ends = Math.max(timer.endsAt, Date.now()) + extraSeconds * 1000
@@ -214,7 +217,7 @@ function HemScreen({ navigation, route }) {
     )
     try {
       await scheduleAlarm(snoozed, ends, localSoundUri(snoozed.id) ? soundName(snoozed.id) : null)
-      await updateTask(snoozed.id, snoozed)
+      await updateTask(snoozed.id, { snoozeCount: snoozed.snoozeCount })
       await load()
       flashTask(snoozed.id)
     } catch (err) {
@@ -242,7 +245,7 @@ function HemScreen({ navigation, route }) {
     if (onTime) showDoneIcon()
     else showNaggingIcon()
     try {
-      await updateTask(finished.id, finished)
+      await updateTask(finished.id, { status: 'done', doneCount: finished.doneCount, lateSeconds })
       await load()
       flashTask(finished.id)
     } catch (err) {
@@ -296,12 +299,23 @@ function HemScreen({ navigation, route }) {
     return () => clearTimeout(timeout)
   }, [timers, streak])
 
+  // Bakgrunden glider över till mörk när ett tjat startar, och tillbaka
+  useEffect(() => {
+    Animated.timing(shade, { toValue: dark ? 1 : 0, duration: 250, useNativeDriver: false }).start()
+  }, [dark, shade])
+  const background = shade.interpolate({ inputRange: [0, 1], outputRange: [colors.bg, shaded(colors.bg)] })
+
   // Streaken uppe till vänster, kameran uppe till höger. Rubrikraden
-  // mörknar med resten när tiden är ute.
+  // mörknar med resten medan ett tjat går.
   useLayoutEffect(() => {
     navigation.setOptions({
-      headerStyle: { backgroundColor: focus ? shaded(colors.bg) : colors.bg },
-      headerLeft: () => <StreakBadge count={streak} />,
+      headerStyle: { backgroundColor: dark ? shaded(colors.bg) : colors.bg },
+      headerTintColor: dark ? lightText : colors.text,
+      headerLeft: () => <StreakBadge count={streak} color={dark ? lightText : colors.text} />,
+      // På iOS 26 hamnar hörnen annars i en glasbubbla som ser ut som en knapp
+      unstable_headerLeftItems: () => [
+        { type: 'custom', element: <StreakBadge count={streak} color={dark ? lightText : colors.text} />, hidesSharedBackground: true },
+      ],
       headerRight: () => (
         <Pressable
           onPress={toggleGotcha}
@@ -312,7 +326,7 @@ function HemScreen({ navigation, route }) {
         </Pressable>
       ),
     })
-  }, [navigation, streak, gotchaOn, focus])
+  }, [navigation, streak, gotchaOn, dark])
 
   // Knapptryck på notisen: Klart eller Snooza. Hooken fångar även trycket
   // som startade appen kallt, därför väntar vi in återställningen först.
@@ -333,13 +347,13 @@ function HemScreen({ navigation, route }) {
   }, [restored, lastResponse, timers])
 
   return (
-    <View style={styles.screen}>
+    <Animated.View style={[styles.screen, { backgroundColor: background }]}>
+      <StatusBar style={dark ? 'light' : 'dark'} />
       <ErrorBanner message={error} onRetry={load} />
 
-      {/* Tryck utanför textrutan fäller ner tangentbordet, så Starta syns igen.
-          När tiden är ute ligger timerns skugga över listan också. */}
+      {/* Tryck utanför textrutan fäller ner tangentbordet, så Starta syns igen */}
       <Pressable
-        style={[styles.hero, focus && styles.heroOnTop]}
+        style={styles.hero}
         onPress={Keyboard.dismiss}
         onLayout={(event) => setHeroHeight(event.nativeEvent.layout.height)}
         accessible={false}
@@ -351,8 +365,8 @@ function HemScreen({ navigation, route }) {
               current={current}
               guard={guard}
               onDone={() => handleDone()}
-              onSnooze={() => handleSnooze()}
-              onFocusChange={setFocus}
+              onSnooze={(seconds) => handleSnooze(current, seconds)}
+              onFocusChange={setExpired}
             />
           ) : (
             <TaskForm onAdd={handleAdd} onError={setError} guard={guard} />
@@ -369,15 +383,12 @@ function HemScreen({ navigation, route }) {
           guard.disarm()
           handleDone()
         }}
-        onMoreTime={() => {
-          guard.disarm()
-          handleSnooze()
-        }}
       />
       <GotchaCamera shot={gotcha} onSaved={load} onClose={() => setGotcha(null)} />
 
-      {/* Listan tar samma plats som förut, men ritas en bit högre upp */}
-      <View style={{ height: Math.min(listHeight, LIST_HEIGHT) }}>
+      {/* Listan tar samma plats som förut, men ritas en bit högre upp. När
+          tiden är ute går den inte att trycka på - då gäller bara Klart och Snooza. */}
+      <View style={{ height: Math.min(listHeight, LIST_HEIGHT) }} pointerEvents={expired ? 'none' : 'auto'}>
         <FlatList
           style={[styles.history, { top: -lift }]}
           contentContainerStyle={styles.historyContent}
@@ -395,6 +406,8 @@ function HemScreen({ navigation, route }) {
                 <TaskCard
                   task={item}
                   isActive={isActive}
+                  // Medan ett tjat går tonas de andra ner - när tiden är ute även det pågående
+                  dimmed={dark && (expired || !isActive)}
                   onCancel={() => stopTimer(item.id)}
                   onRun={run}
                   onPreview={() => {
@@ -410,14 +423,13 @@ function HemScreen({ navigation, route }) {
           ListEmptyComponent={!error && <Text style={styles.empty}>Inget att tjata om än.</Text>}
         />
       </View>
-    </View>
+    </Animated.View>
   )
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.bg, paddingHorizontal: 20 },
+  screen: { flex: 1, paddingHorizontal: 20 },
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  heroOnTop: { zIndex: 1 },
   history: { position: 'absolute', left: 0, right: 0, bottom: 0 },
   historyContent: { gap: 10, paddingBottom: 16 },
   empty: { textAlign: 'center', color: colors.muted, paddingVertical: 24 },
