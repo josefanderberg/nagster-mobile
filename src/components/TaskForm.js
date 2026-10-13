@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   // Fast höjd, annars hoppar ringen när textrutan fälls ut
-  actions: { flexDirection: 'row', alignItems: 'center', gap: 10, height: 46 },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: 12, height: 64 },
   iconBtn: {
     width: 46,
     height: 46,

@@ -225,6 +225,25 @@ function HemScreen({ navigation, route }) {
     }
   }
 
+  // Mer tid innan tiden är ute är ingen snooze: man tog sig tiden i tid, så
+  // ingen arg ikon, ingen bild och ingen försening - sluttiden som förseningen
+  // räknas från flyttas också. Är tjatet redan försenat är det en snooze.
+  async function handleMoreTime(timer = current, extraSeconds = DEFAULT_SNOOZE_SECONDS) {
+    if (!timer) return
+    if (Date.now() >= timer.deadline) return handleSnooze(timer, extraSeconds)
+    const ends = Math.max(timer.endsAt, Date.now()) + extraSeconds * 1000
+
+    updateTimers((previous) =>
+      previous.map((item) => (item.task.id === timer.task.id ? { ...item, endsAt: ends, deadline: ends } : item))
+    )
+    try {
+      await scheduleAlarm(timer.task, ends, localSoundUri(timer.task.id) ? soundName(timer.task.id) : null)
+      flashTask(timer.task.id)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
   // Klart räknar upp hur många gånger tjatet klarats och sparar hur sent det
   // blev - räknat från första sluttiden, så varje snooze gör det senare.
   // Bara i tid ger glad ikon och håller streaken vid liv.
@@ -365,6 +384,7 @@ function HemScreen({ navigation, route }) {
               current={current}
               guard={guard}
               onDone={() => handleDone()}
+              onMoreTime={(seconds) => handleMoreTime(current, seconds)}
               onSnooze={(seconds) => handleSnooze(current, seconds)}
               onFocusChange={setExpired}
             />

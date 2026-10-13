@@ -37,8 +37,8 @@ function Ring({ timer, state, label, green }) {
 // inre ring. Klart och Mer tid/Snooza gäller det som tar slut först (current).
 // Skärmen är mörk medan tjatet går. När tiden är ute tonas även ringen ner,
 // så att bara knapparna gäller - onFocusChange berättar det för skärmen.
-// onSnooze får antalet sekunder man valde.
-function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }) {
+// onMoreTime (innan tiden är ute) och onSnooze (efter) får sekunderna man valde.
+function ActiveTimer({ timers, current, guard, onDone, onMoreTime, onSnooze, onFocusChange }) {
   useKeepAwake() // skärmen får inte somna - då slutar accelerometern mäta
 
   const [now, setNow] = useState(() => Date.now())
@@ -64,7 +64,8 @@ function ActiveTimer({ timers, current, guard, onDone, onSnooze, onFocusChange }
   }, [])
 
   const dim = useRef(new Animated.Value(1)).current
-  const choice = useSnoozeChoice((seconds) => onSnooze(seconds))
+  // Mer tid innan tiden är ute är ingen snooze - man tog sig tiden i tid
+  const choice = useSnoozeChoice((seconds) => (state.expired ? onSnooze(seconds) : onMoreTime(seconds)))
   useEffect(() => {
     Animated.timing(dim, { toValue: state.expired ? DIMMED : 1, duration: 250, useNativeDriver: true }).start()
     onFocusChange(state.expired)
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
   centerLabel: { position: 'absolute', top: 0, left: 0, width: SIZE, height: SIZE, alignItems: 'center', justifyContent: 'center' },
   // Ljus text - skärmen är mörk medan tjatet går
   centerText: { fontSize: 30, fontWeight: '700', color: lightText },
-  titleRow: { height: 46, justifyContent: 'center', alignItems: 'center' },
+  titleRow: { height: 64, justifyContent: 'center', alignItems: 'center' },
   title: { color: lightMuted, fontSize: 15 },
   titleFirst: { color: lightText, fontWeight: '600' },
   titleNext: { color: lightMuted, fontSize: 13, marginTop: 2 },

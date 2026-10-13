@@ -4,8 +4,8 @@ import { CameraView } from 'expo-camera'
 import { savePhoto } from '../store.js'
 import { colors } from '../theme.js'
 
-const PREPARE_MS = 1000 // bilden tas en sekund efter att kameran öppnats - snabbt, men man hinner se sig själv
-const SHOW_MS = 1000 // så länge bilden med stämpeln visas
+const EXPOSURE_MS = 300 // frontkameran hinner ställa in ljuset, annars blir bilden mörk
+const SHOW_MS = 1000 // så länge den frysta bilden med stämpeln visas
 const GIVE_UP_MS = 4000 // blir kameran aldrig redo stängs den tyst
 
 const STAMPS = {
@@ -14,20 +14,20 @@ const STAMPS = {
   late: { text: 'KLARAT...\nTILL SLUT', color: '#f08c00' },
 }
 
-// Ertappad-kameran: när man snoozar eller klarar ett tjat visar frontkameran
-// en live-bild i en sekund, tar en bild och visar den med en stämpel i en
-// sekund till. Bilden sparas på tjatet och syns som bevis i detaljvyn.
-// shot är { kind, taskId } eller null.
+// Ertappad-kameran: när man snoozar eller klarar ett tjat tar frontkameran
+// en bild så fort den är redo. Bilden fryses på skärmen i samma ögonblick,
+// med stämpeln ovanpå, och visas en sekund. Bilden sparas på tjatet och syns
+// som bevis i detaljvyn. shot är { kind, taskId } eller null.
 function GotchaCamera({ shot, onSaved, onClose }) {
   const camera = useRef(null)
   const taken = useRef(false)
-  const openedAt = useRef(0)
+  const [frozen, setFrozen] = useState(false)
   const [photo, setPhoto] = useState(null)
 
   useEffect(() => {
     if (!shot) return
     taken.current = false
-    openedAt.current = Date.now()
+    setFrozen(false)
     setPhoto(null)
     const giveUp = setTimeout(() => {
       if (!taken.current) onClose()
@@ -35,26 +35,27 @@ function GotchaCamera({ shot, onSaved, onClose }) {
     return () => clearTimeout(giveUp)
   }, [shot])
 
-  useEffect(() => {
-    if (!photo) return
-    const timeout = setTimeout(onClose, SHOW_MS)
-    return () => clearTimeout(timeout)
-  }, [photo])
-
-  // Kameran blir oftast redo innan sekunden gått - då väntar den in resten
   function handleReady() {
     if (taken.current || !shot) return
     taken.current = true
-    const wait = Math.max(0, openedAt.current + PREPARE_MS - Date.now())
-    setTimeout(async () => {
-      try {
-        const picture = await camera.current.takePictureAsync({ quality: 0.3 })
-        setPhoto(picture.uri)
-        onSaved(await savePhoto(shot.taskId, picture.uri, shot.kind))
-      } catch {
-        onClose() // ingen bild - då blir det inget bevis den här gången
-      }
-    }, wait)
+    setTimeout(capture, EXPOSURE_MS)
+  }
+
+  async function capture() {
+    const frozenAt = Date.now()
+    try {
+      // Fotot tas och förhandsbilden fryses samtidigt - det man ser är bilden
+      const picture = camera.current.takePictureAsync({ quality: 0.3 })
+      camera.current.pausePreview().catch(() => {})
+      setFrozen(true)
+      const { uri } = await picture
+      setPhoto(uri)
+      onSaved(await savePhoto(shot.taskId, uri, shot.kind))
+      // Stängs en sekund efter frysningen, eller direkt om sparandet tog längre
+      setTimeout(onClose, Math.max(0, frozenAt + SHOW_MS - Date.now()))
+    } catch {
+      onClose() // ingen bild - då blir det inget bevis den här gången
+    }
   }
 
   const stamp = STAMPS[shot?.kind] ?? STAMPS.done
@@ -71,11 +72,12 @@ function GotchaCamera({ shot, onSaved, onClose }) {
               style={StyleSheet.absoluteFill}
               facing="front"
               mirror // bilden ska se ut som spegelbilden man just såg
+              animateShutter={false} // ingen blinkning - bilden fryses i stället
               onCameraReady={handleReady}
             />
           )
         )}
-        {photo && (
+        {(frozen || photo) && (
           <View style={styles.stampWrap} pointerEvents="none">
             <View style={[styles.stamp, { borderColor: stamp.color }]}>
               <Text style={[styles.stampText, { color: stamp.color }]}>{stamp.text}</Text>

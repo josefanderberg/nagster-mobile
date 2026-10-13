@@ -1,11 +1,11 @@
 import Svg, { Circle, Path, Rect } from 'react-native-svg'
 
 // Samma ikoner som webbappen, ritade med react-native-svg i stället för emojis
-function Icon({ color, children }) {
+function Icon({ color, children, size = 20 }) {
   return (
     <Svg
-      width={20}
-      height={20}
+      width={size}
+      height={size}
       viewBox="0 0 24 24"
       fill="none"
       stroke={color}
@@ -46,9 +46,9 @@ export function PencilIcon({ color }) {
   )
 }
 
-export function MicIcon({ color }) {
+export function MicIcon({ color, size }) {
   return (
-    <Icon color={color}>
+    <Icon color={color} size={size}>
       <Rect x="9" y="3" width="6" height="11" rx="3" />
       <Path d="M5 11a7 7 0 0 0 14 0" />
       <Path d="M12 18v3" />
@@ -56,9 +56,9 @@ export function MicIcon({ color }) {
   )
 }
 
-export function StopIcon({ color }) {
+export function StopIcon({ color, size }) {
   return (
-    <Icon color={color}>
+    <Icon color={color} size={size}>
       <Rect x="7" y="7" width="10" height="10" rx="2" fill={color} />
     </Icon>
   )
