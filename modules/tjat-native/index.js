@@ -36,6 +36,12 @@ export async function speakToFile(text, fileUri) {
   }
 }
 
+// Frågar om lov för taligenkänning och hämtar språkmodellen medan man
+// pratar in, så att titeln hinner bli klar när man trycker Starta
+export function prepareListening() {
+  lyssna?.prepare()
+}
+
 // Lyssnar på en inspelning och ger texten, eller null om det inte gick -
 // då får tjatet standardtiteln. Tolkningen sker bara i telefonen.
 export async function transcribe(fileUri) {
