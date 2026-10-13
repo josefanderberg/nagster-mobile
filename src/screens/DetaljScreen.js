@@ -10,7 +10,7 @@ import { isSecondsMode, ringUnits } from '../timerRing.js'
 import { formatDuration } from '../time.js'
 import { colors } from '../theme.js'
 
-const PHOTO_LABELS = { snooze: 'Ertappad', done: 'Klarat', late: 'Till slut' }
+const PHOTO_LABELS = { snooze: 'Snooze', done: 'Klarat', late: 'Till slut' }
 
 // Detaljvyn för ett tjat: allt som är sparat om det, möjligheten att lyssna
 // på inspelningen igen och att köra tjatet en gång till. Det pågående tjatet

@@ -239,7 +239,7 @@ function HemScreen({ navigation, route }) {
     if (next) {
       // Frågan finns bara på Camera-objektet - den exporteras inte för sig
       const { granted } = await Camera.requestCameraPermissionsAsync().catch(() => ({ granted: false }))
-      if (!granted) return setError('Tjat behöver kameran för att kunna ta dig på bar gärning. Slå på den under Inställningar > Tjat.')
+      if (!granted) return setError('Tjat behöver kameran för att ta en bild när du snoozar eller klarar ett tjat. Slå på den under Inställningar > Tjat.')
     }
     saveSetting('gotchaCamera', next)
     setGotchaOn(next)

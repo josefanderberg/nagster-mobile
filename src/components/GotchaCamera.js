@@ -4,18 +4,18 @@ import { CameraView } from 'expo-camera'
 import { savePhoto } from '../store.js'
 import { colors } from '../theme.js'
 
-const SETTLE_MS = 400 // kameran behöver en stund för ljuset innan bilden blir bra
+const SETTLE_MS = 1500 // man ser sig själv live en stund och hinner fixa till sig
 const SHOW_MS = 2400 // så länge bilden med stämpeln visas
 const GIVE_UP_MS = 5000 // blir kameran aldrig redo stängs den tyst
 
 const STAMPS = {
-  snooze: { text: 'ERTAPPAD PÅ\nBAR GÄRNING!', color: '#c1121f' },
+  snooze: { text: 'SNOOZE', color: '#c1121f' },
   done: { text: 'KLARAT!', color: colors.ok },
   late: { text: 'KLARAT...\nTILL SLUT', color: '#f08c00' },
 }
 
-// Ertappad-kameran: frontkameran tar en bild när man snoozar eller klarar ett
-// tjat, och visar den en stund med en stämpel. Bilden sparas på tjatet och
+// Ertappad-kameran: frontkameran visar en live-bild en stund, tar sedan en
+// bild när man snoozar eller klarar ett tjat och visar den med en stämpel. Bilden sparas på tjatet och
 // syns som bevis i detaljvyn. shot är { kind, taskId } eller null.
 function GotchaCamera({ shot, onSaved, onClose }) {
   const camera = useRef(null)
