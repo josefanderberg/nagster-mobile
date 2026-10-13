@@ -16,7 +16,9 @@
         "com.apple.developer.usernotifications.time-sensitive": true
       },
       "infoPlist": {
-        "NSSpeechRecognitionUsageDescription": "Tjat lyssnar på din inspelning för att ge tjatet en titel. Det sker bara i telefonen."
+        "NSSpeechRecognitionUsageDescription": "Tjat lyssnar på din inspelning för att ge tjatet en titel. Det sker bara i telefonen.",
+        "NSPhotoLibraryUsageDescription": "Tjat använder inte ditt bildbibliotek. Bevisbilderna sparas bara i appen.",
+        "NSPhotoLibraryAddUsageDescription": "Tjat använder inte ditt bildbibliotek. Bevisbilderna sparas bara i appen."
       }
     },
     "android": {
